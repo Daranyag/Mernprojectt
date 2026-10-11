@@ -16,21 +16,36 @@ app.use(
   })
 );
 
-// CORS configuration for trusted frontend origin
-const allowedOrigin = process.env.CLIENT_URL || 'http://localhost:5173';
+// CORS configuration for trusted frontend origins (supports single origin or comma-separated origins)
+const getAllowedOrigins = () => {
+  const configured = process.env.CLIENT_URL || 'http://localhost:5173';
+  return configured.split(',').map((url) => url.trim().replace(/\/$/, '')).filter(Boolean);
+};
+
 app.use(
   cors({
     origin: (origin, callback) => {
       // Allow requests with no origin (like mobile apps, curl, or server-to-server)
-      if (!origin || origin === allowedOrigin) {
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      const allowedOrigins = getAllowedOrigins();
+      const isAllowed = allowedOrigins.some((allowed) => {
+        if (allowed === '*') return true;
+        return origin === allowed || origin.replace(/\/$/, '') === allowed;
+      });
+
+      if (isAllowed) {
         callback(null, true);
       } else {
+        console.warn(`[CORS Blocked] Origin not allowed: ${origin}. Allowed origins:`, allowedOrigins);
         callback(new Error(`Origin ${origin} not allowed by CORS`));
       }
     },
     credentials: true, // Allow cookies to be sent across origins
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   })
 );
 
