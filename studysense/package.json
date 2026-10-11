@@ -1,0 +1,10 @@
+{
+  "name": "studysense",
+  "version": "1.0.0",
+  "description": "StudySense: Smart Study Evaluator and Personalized Learning Management System",
+  "private": true,
+  "scripts": {
+    "start": "run.bat",
+    "dev": "run.bat"
+  }
+}

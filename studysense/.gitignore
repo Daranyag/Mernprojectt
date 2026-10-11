@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+*/node_modules/
+npm-debug.log*
+
+# Environment Variables & Secrets (CRITICAL: Do NOT push!)
+.env
+.env.local
+.env.*.local
+*.env
+client/.env
+server/.env
+**/.env
+**/*.env
+
+# Production Builds
+dist/
+build/
+*/dist/
+*/build/
+
+# IDE & Editor Configs
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Logs & Temporary Files
+logs/
+*.log
+coverage/
+scratch/
+tmp/
+temp/
