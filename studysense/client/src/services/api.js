@@ -1,12 +1,19 @@
 import axios from 'axios';
 
+// Normalize baseURL: if user set https://host.onrender.com without /api, ensure /api is appended
+const rawBaseURL = import.meta.env.VITE_API_BASE_URL || '/api';
+const cleanBaseURL = rawBaseURL.replace(/\/+$/, '');
+const normalizedBaseURL = cleanBaseURL.endsWith('/api')
+  ? cleanBaseURL
+  : `${cleanBaseURL}/api`;
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
+  baseURL: normalizedBaseURL,
   withCredentials: true, // Crucial for HttpOnly cookies
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 10000,
+  timeout: 15000,
 });
 
 // Response interceptor to normalize error responses
