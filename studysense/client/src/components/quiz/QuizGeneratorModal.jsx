@@ -621,6 +621,22 @@ export const QuizGeneratorModal = ({
           {/* MODE 2: INTERACTIVE LIVE QUIZ PLATFORM */}
           {viewMode === 'quiz' && activeQuestion && (
             <div className="space-y-6">
+              {notice && (
+                <div className="flex items-start gap-3 p-4 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl text-amber-900 dark:text-amber-200 text-sm animate-fade-in shadow-sm">
+                  <Sparkles className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <strong className="font-semibold">Automatic Fallback Notice: </strong> {notice}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setNotice('')}
+                    className="text-xs text-amber-700 dark:text-amber-300 hover:text-amber-900 font-bold px-1"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
+
               {/* Question Navigation Bar & Progress */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
                 <div className="flex items-center gap-2">

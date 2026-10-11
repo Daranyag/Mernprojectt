@@ -1,6 +1,6 @@
 const { ImportantTopicAnalysis } = require('../models/ImportantTopicAnalysis');
 const Subject = require('../models/Subject');
-const Topic = require('../models/Topic');
+const { Topic } = require('../models/Topic');
 const { QuizSource } = require('../models/QuizSource');
 const StudyMaterial = require('../models/StudyMaterial');
 const { generateImportantTopicsWithAI } = require('../services/importantTopics.service');

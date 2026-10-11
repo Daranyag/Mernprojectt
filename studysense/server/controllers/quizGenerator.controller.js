@@ -1,6 +1,6 @@
 const { QuizSource } = require('../models/QuizSource');
 const Subject = require('../models/Subject');
-const Topic = require('../models/Topic');
+const { Topic } = require('../models/Topic');
 const { Question } = require('../models/Question');
 const { Quiz } = require('../models/Quiz');
 const StudyMaterial = require('../models/StudyMaterial');

@@ -1,6 +1,6 @@
 const { ExamPaper } = require('../models/ExamPaper');
 const Subject = require('../models/Subject');
-const Topic = require('../models/Topic');
+const { Topic } = require('../models/Topic');
 const { QuizSource } = require('../models/QuizSource');
 const StudyMaterial = require('../models/StudyMaterial');
 const { calculatePaperMarks, generateExamPaperWithAI } = require('../services/examPaper.service');
