@@ -356,7 +356,14 @@ const quizGeneratorController = {
         }
       }
 
-      const count = Math.min(Math.max(parseInt(questionCount, 10) || 5, 1), 30);
+      // Support both targetCount and questionCount from frontend
+      const rawCount = targetCount !== undefined ? targetCount : questionCount;
+      const count = Math.min(Math.max(parseInt(rawCount, 10) || 5, 1), 50);
+
+      // Map outer_sources / general_knowledge
+      if (effectiveSourceScope === 'outer_sources') {
+        effectiveSourceScope = 'general_knowledge';
+      }
 
       // Call AI generation service
       const generatedQuestions = await generateQuestionsWithAI({

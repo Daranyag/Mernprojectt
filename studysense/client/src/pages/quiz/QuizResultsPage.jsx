@@ -12,8 +12,10 @@ import {
   Loader2,
   AlertCircle,
   BookMarked,
+  Sparkles,
 } from 'lucide-react';
 import { questionService } from '../../services/quizService';
+import ExplainModal from '../../components/doubt/ExplainModal';
 
 const QuizResultsPage = () => {
   const { attemptId } = useParams();
@@ -22,6 +24,7 @@ const QuizResultsPage = () => {
   const [attempt, setAttempt] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [explainingQuestion, setExplainingQuestion] = useState(null);
 
   useEffect(() => {
     const fetchAttempt = async () => {
@@ -295,6 +298,30 @@ const QuizResultsPage = () => {
                 </div>
               )}
 
+              {/* 1-Tap Explain to Me Assistant Button */}
+              <div className="flex items-center justify-between pt-1">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setExplainingQuestion({
+                      questionText: resItem.questionText,
+                      options: resItem.options,
+                      userSelectedOption:
+                        resItem.options?.find((o) => o.id === resItem.selectedOptionId)?.text || '',
+                      correctOption:
+                        resItem.options?.find((o) => o.id === resItem.correctOptionId)?.text || '',
+                      authorExplanation: resItem.explanation || '',
+                      subject: attempt.subject,
+                    })
+                  }
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white text-xs font-semibold shadow-xs transition-all active:scale-95"
+                  title="Break down this question step-by-step with StudySense AI"
+                >
+                  <Sparkles size={13} className="text-amber-300" />
+                  <span>Explain to Me</span>
+                </button>
+              </div>
+
               {/* Remedial Teaching & Mistake Practice for Incorrect Answers */}
               {!isCorrect && (
                 <div className="p-4 rounded-xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 space-y-2.5">
@@ -304,7 +331,7 @@ const QuizResultsPage = () => {
                       Topic Remediation & Concept Teaching
                     </span>
                     <Link
-                      to="/mistakes"
+                      to="/mistake-book"
                       className="text-[11px] font-semibold text-amber-700 hover:text-amber-800 dark:text-amber-400 underline underline-offset-2"
                     >
                       View in Mistake Book →
@@ -315,7 +342,7 @@ const QuizResultsPage = () => {
                   </p>
                   <div className="flex flex-wrap gap-2 pt-1">
                     <Link
-                      to="/mistakes"
+                      to="/mistake-book"
                       className="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold shadow-2xs transition"
                     >
                       Practice in Mistake Book
@@ -334,6 +361,18 @@ const QuizResultsPage = () => {
             </div>
           );
         })}
+
+        {/* 1-Tap Explain to Me Modal */}
+        <ExplainModal
+          isOpen={!!explainingQuestion}
+          onClose={() => setExplainingQuestion(null)}
+          questionText={explainingQuestion?.questionText || ''}
+          options={explainingQuestion?.options || []}
+          userSelectedOption={explainingQuestion?.userSelectedOption || ''}
+          correctOption={explainingQuestion?.correctOption || ''}
+          authorExplanation={explainingQuestion?.authorExplanation || ''}
+          subject={explainingQuestion?.subject || null}
+        />
 
       </div>
     </div>

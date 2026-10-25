@@ -136,7 +136,7 @@ const QuestionBankPage = () => {
           <div className="flex items-center gap-2.5">
             <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Question Bank</h1>
             <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100">
-              Module 5
+              Questions
             </span>
           </div>
           <p className="text-sm text-slate-500 mt-1">

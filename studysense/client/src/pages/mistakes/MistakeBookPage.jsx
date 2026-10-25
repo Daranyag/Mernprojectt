@@ -23,6 +23,7 @@ import { mistakeService } from '../../services/mistakeService';
 import { subjectService } from '../../services/subjectService';
 import MistakeDetailModal from '../../components/mistakes/MistakeDetailModal';
 import ConfirmModal from '../../components/common/ConfirmModal';
+import ExplainModal from '../../components/doubt/ExplainModal';
 import DashboardLayout from '../../components/layouts/DashboardLayout';
 
 const MistakeBookPage = () => {
@@ -49,6 +50,7 @@ const MistakeBookPage = () => {
 
   // Modals
   const [viewingMistake, setViewingMistake] = useState(null);
+  const [explainingMistake, setExplainingMistake] = useState(null);
   const [deletingMistake, setDeletingMistake] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
@@ -169,7 +171,7 @@ const MistakeBookPage = () => {
           <div className="flex items-center gap-2.5">
             <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Mistake Book</h1>
             <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-100">
-              Module 6
+              Self-Correction
             </span>
           </div>
           <p className="text-sm text-slate-500 mt-1">
@@ -580,7 +582,15 @@ const MistakeBookPage = () => {
                                     <span className="text-[11px] text-slate-400">
                                       Practiced {mistake.correctPracticeCount}x
                                     </span>
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-1.5">
+                                      <button
+                                        onClick={() => setExplainingMistake(mistake)}
+                                        className="inline-flex items-center gap-1 text-xs font-semibold text-violet-700 hover:text-violet-900 bg-violet-50 hover:bg-violet-100 px-2.5 py-1 rounded border border-violet-200"
+                                        title="1-tap step-by-step conceptual explanation"
+                                      >
+                                        <Sparkles size={11} className="text-violet-600" />
+                                        Explain
+                                      </button>
                                       <button
                                         onClick={() => setViewingMistake(mistake)}
                                         className="text-xs font-semibold text-slate-700 hover:text-slate-900 px-2.5 py-1 rounded border border-slate-200 hover:bg-slate-50"
@@ -694,6 +704,14 @@ const MistakeBookPage = () => {
 
                   <div className="flex items-center gap-2">
                     <button
+                      onClick={() => setExplainingMistake(mistake)}
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-violet-700 hover:text-violet-900 bg-violet-50 hover:bg-violet-100 px-3 py-1.5 rounded-lg border border-violet-200 transition"
+                      title="1-tap step-by-step conceptual explanation"
+                    >
+                      <Sparkles size={12} className="text-violet-600" />
+                      Explain
+                    </button>
+                    <button
                       onClick={() => setViewingMistake(mistake)}
                       className="inline-flex items-center gap-1 text-xs font-semibold text-slate-700 hover:text-slate-900 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50"
                     >
@@ -741,6 +759,23 @@ const MistakeBookPage = () => {
         onToggleReview={handleToggleReview}
         onDelete={(m) => setDeletingMistake(m)}
         onPracticeSingle={(mId) => navigate(`/mistake-book/practice?singleId=${mId}`)}
+        onExplain={(m) => {
+          setViewingMistake(null);
+          setExplainingMistake(m);
+        }}
+      />
+
+      {/* 1-Tap Explain to Me Modal */}
+      <ExplainModal
+        isOpen={!!explainingMistake}
+        onClose={() => setExplainingMistake(null)}
+        questionText={explainingMistake?.questionSnapshot || ''}
+        options={explainingMistake?.optionsSnapshot || []}
+        userSelectedOption={explainingMistake?.selectedOptionSnapshot?.text || ''}
+        correctOption={explainingMistake?.correctOptionSnapshot?.text || ''}
+        authorExplanation={explainingMistake?.explanationSnapshot || ''}
+        subject={explainingMistake?.subject || null}
+        topic={explainingMistake?.topic || null}
       />
 
       {/* Delete Confirmation */}

@@ -118,33 +118,35 @@ const examPaperController = {
       let effectiveSourceScope = sourceScope;
       let fallbackNotice = null;
 
-      if (sourceScope === 'material_only' || sourceScope === 'combined') {
-        if (Array.isArray(sourceIds) && sourceIds.length > 0) {
-          const sources = await QuizSource.find({
-            _id: { $in: sourceIds },
-            user: req.user._id
-          });
-          extractedMaterials.push(
-            ...sources.map((s) => ({
-              id: s._id,
-              title: s.title,
-              text: s.extractedText
-            }))
-          );
+      // If user uploaded any custom sources (URL, PDF, paste text) or chose material/combined
+      if (Array.isArray(sourceIds) && sourceIds.length > 0) {
+        const sources = await QuizSource.find({
+          _id: { $in: sourceIds },
+          user: req.user._id
+        });
+        extractedMaterials.push(
+          ...sources.map((s) => ({
+            id: s._id,
+            title: s.title,
+            text: s.extractedText
+          }))
+        );
 
-          // Also check StudyMaterials
-          const materials = await StudyMaterial.find({
-            _id: { $in: sourceIds },
-            user: req.user._id
-          });
-          extractedMaterials.push(
-            ...materials.map((m) => ({
-              id: m._id,
-              title: m.title,
-              text: m.content || ''
-            }))
-          );
-        }
+        // Also check StudyMaterials
+        const materials = await StudyMaterial.find({
+          _id: { $in: sourceIds },
+          user: req.user._id
+        });
+        extractedMaterials.push(
+          ...materials.map((m) => ({
+            id: m._id,
+            title: m.title,
+            text: m.content || ''
+          }))
+        );
+      }
+
+      if (sourceScope === 'material_only' || sourceScope === 'combined') {
 
         // If no materials were specifically passed, check if user uploaded ANY materials for this subject
         if (extractedMaterials.length === 0) {

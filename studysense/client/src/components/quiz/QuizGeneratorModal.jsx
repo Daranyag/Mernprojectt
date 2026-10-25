@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Sparkles, X, AlertCircle, CheckCircle2, BookOpen, Layers, 
   HelpCircle, Check, ArrowRight, ArrowLeft, Award, RotateCcw, 
-  XCircle, FileText, ChevronRight, BookMarked
+  XCircle, FileText, ChevronRight, BookMarked, Upload, Link2, PlusCircle, Trash2, Globe
 } from 'lucide-react';
 import quizGeneratorService from '../../services/quizGeneratorService';
 import { questionService } from '../../services/quizService';
@@ -22,8 +22,16 @@ export const QuizGeneratorModal = ({
   const [questionType, setQuestionType] = useState('MCQ'); // 'MCQ' | 'Short Answer' | 'Long Answer' | 'Mixed'
   const [questionCount, setQuestionCount] = useState(5);
   const [marksTier, setMarksTier] = useState('2m'); // '1m' | '2m' | '14m' | 'mixed'
-  const [sourceScope, setSourceScope] = useState('general_knowledge'); // 'general_knowledge' | 'material_only' | 'combined'
+  const [sourceScope, setSourceScope] = useState('outer_sources'); // 'my_materials' | 'combined' | 'outer_sources'
   const [quizTitle, setQuizTitle] = useState('');
+
+  // Source upload states for direct PDF/URL/text attachment
+  const [uploadedSources, setUploadedSources] = useState([]);
+  const [sourceUrlInput, setSourceUrlInput] = useState('');
+  const [sourceTextInput, setSourceTextInput] = useState('');
+  const [showTextModal, setShowTextModal] = useState(false);
+  const [sourceUploading, setSourceUploading] = useState(false);
+  const [sourceUploadSuccess, setSourceUploadSuccess] = useState('');
 
   // Workflow states: 'config' | 'quiz' | 'evaluation' | 'review'
   const [viewMode, setViewMode] = useState('config');
@@ -51,6 +59,107 @@ export const QuizGeneratorModal = ({
   const currentTopics = currentSubject?.topics || [];
   const availableUnits = Array.from(new Set(currentTopics.map((t) => t.unit).filter(Boolean)));
 
+  // Ingest external PDF file directly
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!selectedSubjectId) {
+      setError('Please select a subject first before uploading study materials.');
+      return;
+    }
+    setError('');
+    setSourceUploadSuccess('');
+    setSourceUploading(true);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('subjectId', selectedSubjectId);
+      if (selectedTopicId) formData.append('topicId', selectedTopicId);
+      formData.append('title', file.name);
+
+      const res = await quizGeneratorService.ingestFileUpload(formData);
+      if (res?.data) {
+        setUploadedSources((prev) => [...prev, res.data]);
+        setSourceUploadSuccess(`Uploaded "${file.name}" successfully!`);
+      }
+    } catch (err) {
+      console.error('File upload error:', err);
+      setError(err?.response?.data?.message || err?.message || 'Failed to upload document');
+    } finally {
+      setSourceUploading(false);
+      e.target.value = '';
+    }
+  };
+
+  // Ingest URL (webpage / youtube / notes)
+  const handleUrlSubmit = async (e) => {
+    e?.preventDefault();
+    if (!sourceUrlInput.trim()) return;
+    if (!selectedSubjectId) {
+      setError('Please select a subject first before adding reference URL.');
+      return;
+    }
+    setError('');
+    setSourceUploadSuccess('');
+    setSourceUploading(true);
+
+    try {
+      const res = await quizGeneratorService.ingestUrlSource({
+        subjectId: selectedSubjectId,
+        topicId: selectedTopicId || undefined,
+        url: sourceUrlInput.trim(),
+        title: sourceUrlInput.trim()
+      });
+      if (res?.data) {
+        setUploadedSources((prev) => [...prev, res.data]);
+        setSourceUploadSuccess(`Fetched and ingested content from URL successfully!`);
+        setSourceUrlInput('');
+      }
+    } catch (err) {
+      console.error('URL ingest error:', err);
+      setError(err?.response?.data?.message || err?.message || 'Failed to extract content from URL');
+    } finally {
+      setSourceUploading(false);
+    }
+  };
+
+  // Ingest pasted text
+  const handleTextSubmit = async () => {
+    if (!sourceTextInput.trim()) return;
+    if (!selectedSubjectId) {
+      setError('Please select a subject first before adding notes.');
+      return;
+    }
+    setError('');
+    setSourceUploadSuccess('');
+    setSourceUploading(true);
+
+    try {
+      const res = await quizGeneratorService.ingestTextSource({
+        subjectId: selectedSubjectId,
+        topicId: selectedTopicId || undefined,
+        content: sourceTextInput.trim(),
+        title: `Pasted Notes (${new Date().toLocaleTimeString()})`
+      });
+      if (res?.data) {
+        setUploadedSources((prev) => [...prev, res.data]);
+        setSourceUploadSuccess('Pasted notes ingested successfully!');
+        setSourceTextInput('');
+        setShowTextModal(false);
+      }
+    } catch (err) {
+      console.error('Text ingest error:', err);
+      setError(err?.response?.data?.message || err?.message || 'Failed to ingest pasted text');
+    } finally {
+      setSourceUploading(false);
+    }
+  };
+
+  const handleRemoveSource = (id) => {
+    setUploadedSources((prev) => prev.filter((s) => s._id !== id));
+  };
+
   const handleGenerate = async () => {
     if (!selectedSubjectId) {
       setError('Please select a subject');
@@ -66,6 +175,17 @@ export const QuizGeneratorModal = ({
     setEvaluationResult(null);
 
     const effectiveMarks = marksTier === '2m' ? 2 : marksTier === '14m' ? 14 : marksTier === 'mixed' ? 'mixed' : 1;
+    const sourceIds = uploadedSources.map((s) => s._id);
+
+    // Map sourceScope to server expectations
+    let mappedScope = sourceScope;
+    if (sourceScope === 'my_materials') {
+      mappedScope = 'material_only';
+    } else if (sourceScope === 'outer_sources') {
+      mappedScope = 'general_knowledge';
+    } else {
+      mappedScope = 'combined';
+    }
 
     try {
       const response = await quizGeneratorService.generateQuiz({
@@ -75,9 +195,11 @@ export const QuizGeneratorModal = ({
         difficulty,
         questionType: marksTier === '14m' ? 'Long Answer' : questionType,
         targetCount: Number(questionCount),
+        questionCount: Number(questionCount),
         marksTier,
         marks: effectiveMarks,
-        sourceScope,
+        sourceScope: mappedScope,
+        sourceIds: sourceIds.length > 0 ? sourceIds : undefined,
         title: quizTitle || `${currentSubject?.name || 'Subject'} ${marksTier.toUpperCase()} Quiz`
       });
 
@@ -200,6 +322,47 @@ export const QuizGeneratorModal = ({
         mistakes: wrongQuestionsToRecord,
       }).catch(err => {
         console.warn('Could not auto-record mistakes:', err?.message);
+      });
+    }
+
+    // Record this completed quiz attempt in QuizAttempt history
+    if (selectedSubjectId) {
+      const attemptResults = generatedQuestions.map((q, idx) => {
+        const detail = details[idx];
+        let correctOptId = q.correctOptionId || 'A';
+        if (Array.isArray(q.options) && q.options.length > 0) {
+          const cOpt = q.options.find(o => o.isCorrect || o.id === q.correctOptionId || o.text === q.correctAnswer);
+          if (cOpt) correctOptId = cOpt.id || cOpt.text;
+        }
+
+        return {
+          questionText: q.questionText,
+          topicId: selectedTopicId || undefined,
+          options: Array.isArray(q.options) ? q.options.map((opt, i) => ({
+            id: opt.id || String.fromCharCode(65 + i),
+            text: opt.text || String(opt),
+          })) : [],
+          selectedOptionId: detail?.userAnswer ? (typeof detail.userAnswer === 'string' ? detail.userAnswer : JSON.stringify(detail.userAnswer)) : null,
+          correctOptionId: correctOptId,
+          isCorrect: Boolean(detail?.isCorrect),
+          explanation: q.explanation || q.expectedAnswer || '',
+        };
+      });
+
+      questionService.recordDirectAttempt({
+        quizTitle: quizTitle || `${currentSubject?.name || 'Subject'}: ${marksTier.toUpperCase()} Live Quiz`,
+        subjectId: selectedSubjectId,
+        score,
+        totalQuestions: generatedQuestions.length,
+        correctAnswers: correctCount,
+        incorrectAnswers: wrongCount,
+        unansweredCount,
+        percentage: accuracy,
+        results: attemptResults,
+      }).then(() => {
+        if (onQuizCreated) onQuizCreated();
+      }).catch(err => {
+        console.warn('Could not auto-save quiz attempt to history:', err?.message);
       });
     }
 
@@ -554,50 +717,35 @@ export const QuizGeneratorModal = ({
               {/* Knowledge Source Grounding */}
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-2">
-                  Knowledge Source Grounding
+                  Knowledge Source Grounding *
                 </label>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {/* Option 1: My Materials */}
                   <label className={`flex items-start gap-3 p-3.5 rounded-xl border cursor-pointer transition ${
-                    sourceScope === 'material_only'
-                      ? 'border-blue-600 bg-blue-50/50 dark:bg-blue-950/20'
+                    sourceScope === 'my_materials'
+                      ? 'border-blue-600 bg-blue-50/50 dark:bg-blue-950/30 ring-2 ring-blue-500/20'
                       : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50'
                   }`}>
                     <input
                       type="radio"
                       name="quizSourceScope"
-                      value="material_only"
-                      checked={sourceScope === 'material_only'}
-                      onChange={() => setSourceScope('material_only')}
+                      value="my_materials"
+                      checked={sourceScope === 'my_materials'}
+                      onChange={() => setSourceScope('my_materials')}
                       className="mt-1 text-blue-600 focus:ring-blue-500"
                     />
                     <div>
-                      <div className="text-sm font-semibold text-slate-900 dark:text-white">Use My Materials Only</div>
-                      <div className="text-xs text-slate-500 dark:text-slate-400">Strictly grounds questions in your uploaded PDFs and notes.</div>
+                      <div className="text-sm font-semibold text-slate-900 dark:text-white">My Material</div>
+                      <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                        Strictly uses your uploaded topic notes and PDFs. Fallback to outer sources for missing topics.
+                      </div>
                     </div>
                   </label>
 
-                  <label className={`flex items-start gap-3 p-3.5 rounded-xl border cursor-pointer transition ${
-                    sourceScope === 'general_knowledge'
-                      ? 'border-blue-600 bg-blue-50/50 dark:bg-blue-950/20'
-                      : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50'
-                  }`}>
-                    <input
-                      type="radio"
-                      name="quizSourceScope"
-                      value="general_knowledge"
-                      checked={sourceScope === 'general_knowledge'}
-                      onChange={() => setSourceScope('general_knowledge')}
-                      className="mt-1 text-blue-600 focus:ring-blue-500"
-                    />
-                    <div>
-                      <div className="text-sm font-semibold text-slate-900 dark:text-white">Curriculum & Syllabus Knowledge</div>
-                      <div className="text-xs text-slate-500 dark:text-slate-400">Generates questions from university curriculum benchmarks.</div>
-                    </div>
-                  </label>
-
+                  {/* Option 2: My Material + Outer Sources */}
                   <label className={`flex items-start gap-3 p-3.5 rounded-xl border cursor-pointer transition ${
                     sourceScope === 'combined'
-                      ? 'border-blue-600 bg-blue-50/50 dark:bg-blue-950/20'
+                      ? 'border-blue-600 bg-blue-50/50 dark:bg-blue-950/30 ring-2 ring-blue-500/20'
                       : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50'
                   }`}>
                     <input
@@ -609,11 +757,161 @@ export const QuizGeneratorModal = ({
                       className="mt-1 text-blue-600 focus:ring-blue-500"
                     />
                     <div>
-                      <div className="text-sm font-semibold text-slate-900 dark:text-white">Combined Materials + Curriculum</div>
-                      <div className="text-xs text-slate-500 dark:text-slate-400">Combines uploaded documents and core syllabus topics.</div>
+                      <div className="text-sm font-semibold text-slate-900 dark:text-white">My Material + Outer Sources</div>
+                      <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                        Combines your materials with web references, URLs, uploaded PDFs, or curriculum AI.
+                      </div>
+                    </div>
+                  </label>
+
+                  {/* Option 3: Outer Sources */}
+                  <label className={`flex items-start gap-3 p-3.5 rounded-xl border cursor-pointer transition ${
+                    sourceScope === 'outer_sources'
+                      ? 'border-blue-600 bg-blue-50/50 dark:bg-blue-950/30 ring-2 ring-blue-500/20'
+                      : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                  }`}>
+                    <input
+                      type="radio"
+                      name="quizSourceScope"
+                      value="outer_sources"
+                      checked={sourceScope === 'outer_sources'}
+                      onChange={() => setSourceScope('outer_sources')}
+                      className="mt-1 text-blue-600 focus:ring-blue-500"
+                    />
+                    <div>
+                      <div className="text-sm font-semibold text-slate-900 dark:text-white">Outer Sources</div>
+                      <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                        Upload custom URLs, articles, or PDFs. If no URL provided, AI automatically sources questions.
+                      </div>
                     </div>
                   </label>
                 </div>
+
+                {/* Inline Upload & URL Attachment for Combined or Outer Sources */}
+                {(sourceScope === 'combined' || sourceScope === 'outer_sources') && (
+                  <div className="mt-4 p-4 rounded-xl border border-blue-100 dark:border-blue-900/40 bg-blue-50/30 dark:bg-blue-950/20 space-y-3 animate-fade-in">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold uppercase tracking-wider text-blue-900 dark:text-blue-300 flex items-center gap-1.5">
+                        <Globe size={14} /> Attach Outer Sources (URL, PDF, Text)
+                      </span>
+                      <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                        Optional • AI automatically sources if none provided
+                      </span>
+                    </div>
+
+                    {/* Inputs Row */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {/* URL input */}
+                      <form onSubmit={handleUrlSubmit} className="flex gap-2">
+                        <div className="relative flex-1">
+                          <Link2 size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                          <input
+                            type="url"
+                            placeholder="Paste external URL (YouTube / Webpage)..."
+                            value={sourceUrlInput}
+                            onChange={(e) => setSourceUrlInput(e.target.value)}
+                            className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs focus:ring-2 focus:ring-blue-500 text-slate-900 dark:text-white"
+                          />
+                        </div>
+                        <button
+                          type="submit"
+                          disabled={sourceUploading || !sourceUrlInput.trim()}
+                          className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold disabled:opacity-50 transition cursor-pointer shrink-0"
+                        >
+                          Add URL
+                        </button>
+                      </form>
+
+                      {/* File upload button + Paste Text trigger */}
+                      <div className="flex items-center gap-2">
+                        <label className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 cursor-pointer transition">
+                          <Upload size={14} className="text-blue-600" />
+                          <span>{sourceUploading ? 'Uploading...' : 'Upload PDF / PPTX'}</span>
+                          <input
+                            type="file"
+                            accept=".pdf,.pptx"
+                            onChange={handleFileUpload}
+                            disabled={sourceUploading}
+                            className="hidden"
+                          />
+                        </label>
+
+                        <button
+                          type="button"
+                          onClick={() => setShowTextModal(!showTextModal)}
+                          className="px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 transition"
+                        >
+                          Paste Text
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Expandable text paste box */}
+                    {showTextModal && (
+                      <div className="p-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 space-y-2 animate-fade-in">
+                        <textarea
+                          rows={3}
+                          placeholder="Paste reference text, exam notes, or syllabus content..."
+                          value={sourceTextInput}
+                          onChange={(e) => setSourceTextInput(e.target.value)}
+                          className="w-full p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                        <div className="flex justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setShowTextModal(false)}
+                            className="px-3 py-1.5 text-xs text-slate-500 hover:text-slate-700"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleTextSubmit}
+                            disabled={sourceUploading || !sourceTextInput.trim()}
+                            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold disabled:opacity-50"
+                          >
+                            Add Text Source
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Success Notice */}
+                    {sourceUploadSuccess && (
+                      <div className="text-xs text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1.5">
+                        <CheckCircle2 size={13} /> {sourceUploadSuccess}
+                      </div>
+                    )}
+
+                    {/* List of Attached Sources */}
+                    {uploadedSources.length > 0 && (
+                      <div className="space-y-1.5 pt-1">
+                        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                          Attached Sources ({uploadedSources.length}):
+                        </span>
+                        <div className="flex flex-wrap gap-2">
+                          {uploadedSources.map((s) => (
+                            <span
+                              key={s._id}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800 border border-blue-200 dark:border-blue-900 text-xs font-medium text-blue-900 dark:text-blue-300"
+                            >
+                              <FileText size={12} className="text-blue-600 shrink-0" />
+                              <span className="truncate max-w-[200px]">{s.title || s.originalFilename || 'Document'}</span>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveSource(s._id)}
+                                className="text-slate-400 hover:text-rose-500 ml-1"
+                                title="Remove source"
+                              >
+                                <X size={12} />
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           )}

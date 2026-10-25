@@ -82,6 +82,15 @@ class QuizController {
       return sendError(res, error.statusCode || 500, error.message);
     }
   }
+
+  async recordDirectAttempt(req, res) {
+    try {
+      const attempt = await quizService.recordDirectAttempt(req.user._id, req.body);
+      return sendSuccess(res, 201, 'Quiz attempt recorded successfully', attempt);
+    } catch (error) {
+      return sendError(res, error.statusCode || 500, error.message);
+    }
+  }
 }
 
 module.exports = new QuizController();

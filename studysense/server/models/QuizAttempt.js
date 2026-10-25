@@ -5,7 +5,7 @@ const questionResultSchema = new mongoose.Schema(
     questionId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Question',
-      required: true,
+      default: null,
     },
     questionText: {
       type: String,

@@ -7,6 +7,7 @@ const { validateObjectId } = require('../middleware/validation.middleware');
 router.use(protect);
 
 router.get('/', quizController.getAttempts);
+router.post('/', quizController.recordDirectAttempt);
 router.get('/:id', validateObjectId('id'), quizController.getAttemptById);
 
 module.exports = router;

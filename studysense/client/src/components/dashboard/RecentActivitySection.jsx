@@ -55,7 +55,7 @@ const RecentActivitySection = ({ activities = [] }) => {
             No recent learning activity yet
           </h4>
           <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mt-1 leading-relaxed">
-            Your learning activity stream will track completed topic evaluations, quiz attempts, and mastered subjects as you use subsequent modules.
+            Your learning activity stream will track completed topic evaluations, quiz attempts, and mastered subjects as you study.
           </p>
           <div className="mt-4 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-500 dark:text-slate-400 bg-white dark:bg-charcoal-850 border border-slate-200 dark:border-slate-700">
             <span>Awaiting quiz and topic milestones</span>

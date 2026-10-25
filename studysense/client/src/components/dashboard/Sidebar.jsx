@@ -36,12 +36,6 @@ const NAV_ITEMS = [
     isImplemented: true,
   },
   {
-    name: 'Question Bank',
-    to: '/question-bank',
-    icon: HelpCircle,
-    isImplemented: true,
-  },
-  {
     name: 'Quizzes',
     to: '/quizzes',
     icon: GraduationCap,
@@ -172,17 +166,6 @@ const Sidebar = ({ isOpen, onClose }) => {
           );
         })}
       </nav>
-
-      {/* Module Milestone Footer */}
-      <div className="p-3 mx-3 mb-3 rounded-xl bg-slate-50 dark:bg-charcoal-900/70 border border-slate-200 dark:border-slate-800">
-        <div className="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-300">
-          <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-          <span>Active: Module 4 (Materials & Notes)</span>
-        </div>
-        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
-          Next upcoming: Module 5 (Quizzes & Knowledge Checks).
-        </p>
-      </div>
 
       {/* User Card & Logout */}
       <div className="p-3.5 border-t border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-charcoal-900/50">

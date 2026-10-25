@@ -15,6 +15,7 @@ const analyticsRoutes = require('./analytics.routes');
 const quizGeneratorRoutes = require('./quizGenerator.routes');
 const examPaperRoutes = require('./examPaper.routes');
 const importantTopicsRoutes = require('./importantTopics.routes');
+const doubtSolverRoutes = require('./doubtSolver.routes');
 
 router.use('/health', healthRoutes);
 router.use('/auth', authRoutes);
@@ -30,6 +31,7 @@ router.use('/analytics', analyticsRoutes);
 router.use('/quiz-generator', quizGeneratorRoutes);
 router.use('/exam-papers', examPaperRoutes);
 router.use('/important-topics', importantTopicsRoutes);
+router.use('/doubt-solver', doubtSolverRoutes);
 
 module.exports = router;
 

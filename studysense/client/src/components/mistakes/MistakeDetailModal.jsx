@@ -10,6 +10,7 @@ import {
   Play,
   Trash2,
   Folder,
+  Sparkles,
 } from 'lucide-react';
 
 const MistakeDetailModal = ({
@@ -20,6 +21,7 @@ const MistakeDetailModal = ({
   onToggleReview,
   onDelete,
   onPracticeSingle,
+  onExplain,
 }) => {
   if (!isOpen || !mistake) return null;
 
@@ -233,16 +235,30 @@ const MistakeDetailModal = ({
             </button>
           </div>
 
-          <button
-            onClick={() => {
-              onClose();
-              onPracticeSingle(mistake._id);
-            }}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-xs transition-colors"
-          >
-            <Play size={13} fill="currentColor" />
-            Practice this Question
-          </button>
+          <div className="flex items-center gap-2">
+            {onExplain && (
+              <button
+                type="button"
+                onClick={() => onExplain(mistake)}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white text-xs font-semibold shadow-xs transition-all active:scale-95"
+                title="Get step-by-step conceptual breakdown from StudySense AI"
+              >
+                <Sparkles size={13} className="text-amber-300" />
+                <span>Explain to Me</span>
+              </button>
+            )}
+
+            <button
+              onClick={() => {
+                onClose();
+                onPracticeSingle(mistake._id);
+              }}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-xs transition-colors"
+            >
+              <Play size={13} fill="currentColor" />
+              Practice this Question
+            </button>
+          </div>
         </div>
       </div>
     </div>

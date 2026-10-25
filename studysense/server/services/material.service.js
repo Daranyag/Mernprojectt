@@ -30,10 +30,17 @@ class MaterialService {
       return null;
     }
 
-    // If valid ObjectId, check if it already exists under this subject
+    // If valid ObjectId, verify it belongs to this subject
     if (mongoose.Types.ObjectId.isValid(str)) {
-      const existingById = await Topic.findOne({ _id: str, user: userId, subject: subjectId });
-      if (existingById) return existingById;
+      const topicAnywhere = await Topic.findOne({ _id: str, user: userId });
+      if (topicAnywhere) {
+        if (topicAnywhere.subject.toString() !== subjectId.toString()) {
+          const error = new Error('The selected topic does not belong to the selected subject');
+          error.statusCode = 400;
+          throw error;
+        }
+        return topicAnywhere;
+      }
     }
 
     // Try finding by exact/case-insensitive title under subject

@@ -75,11 +75,7 @@ const App = () => {
       />
       <Route
         path="/question-bank"
-        element={
-          <ProtectedRoute>
-            <QuestionBankPage />
-          </ProtectedRoute>
-        }
+        element={<Navigate to="/quizzes" replace />}
       />
       <Route
         path="/quizzes"

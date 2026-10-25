@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Topbar from '../dashboard/Topbar';
 import BackButton from '../common/BackButton';
+import DoubtSolverDrawer from '../doubt/DoubtSolverDrawer';
 
 const DashboardLayout = ({
   children,
@@ -59,6 +60,9 @@ const DashboardLayout = ({
         )}
         {children}
       </main>
+
+      {/* Global Context-Aware AI Syllabus Assistant & Voice Doubt Solver */}
+      <DoubtSolverDrawer />
 
       {/* Global Footer */}
       <footer className="py-5 border-t border-slate-200/80 dark:border-slate-800 text-center text-xs text-slate-500 dark:text-slate-400 bg-white/50 dark:bg-charcoal-850/50">

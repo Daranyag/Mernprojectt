@@ -217,7 +217,7 @@ const MaterialsPage = () => {
           <div className="flex items-center gap-2.5">
             <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Study Materials & Notes</h1>
             <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100">
-              Module 4
+              Study Notes
             </span>
           </div>
           <p className="text-sm text-slate-500 mt-1">

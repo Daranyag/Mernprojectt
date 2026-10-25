@@ -12,8 +12,8 @@ const MainLayout = ({ children }) => {
 
       <footer className="py-6 border-t border-slate-200/80 dark:border-slate-800 text-center text-xs text-slate-500 dark:text-slate-400">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <span>StudySense: Smart Study Evaluator & LMS &bull; Module 1 (Authentication)</span>
-          <span className="font-mono text-[11px] text-slate-400">Session Strategy: HttpOnly Cookie + JWT</span>
+          <span>StudySense: Smart Study Evaluator & LMS</span>
+          <span className="font-mono text-[11px] text-slate-400">Secure Session Protected</span>
         </div>
       </footer>
     </div>

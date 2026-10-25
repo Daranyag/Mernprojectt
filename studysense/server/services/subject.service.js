@@ -52,8 +52,8 @@ class SubjectService {
 
     // If user provided topics text (unit-wise or simply topics), parse and create them immediately
     let createdTopicsCount = 0;
-    const rawTopicsInput = topicsText || description;
-    if (rawTopicsInput && rawTopicsInput.trim().length > 0) {
+    const rawTopicsInput = topicsText ? topicsText.trim() : '';
+    if (rawTopicsInput.length > 0) {
       try {
         const topicService = require('./topic.service');
         const extracted = topicService.parseSyllabusRules(rawTopicsInput);

@@ -135,7 +135,7 @@ const AnalyticsPage = () => {
             <div>
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/15 backdrop-blur-xs text-xs font-semibold tracking-wide uppercase mb-3">
                 <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                Module 7: Analytics & Recommendations
+                Analytics & Recommendations
               </div>
               <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">
                 Learning Performance & Smart Insights

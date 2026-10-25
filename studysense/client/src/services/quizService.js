@@ -22,6 +22,7 @@ export const questionService = {
   // Quiz Attempts & Results
   getAllAttempts: (params = {}) => api.get('/quiz-attempts', { params }),
   getAttemptById: (id) => api.get(`/quiz-attempts/${id}`),
+  recordDirectAttempt: (data) => api.post('/quiz-attempts', data),
 };
 
 export default questionService;

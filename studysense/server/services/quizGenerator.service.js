@@ -90,7 +90,8 @@ const buildPrompt = ({
   }
 
   return `You are an expert university professor and examination board evaluator for the course "${subjectName}".
-Your task is to generate exactly ${questionCount} rigorous, high-quality assessment questions.
+Your task is to generate EXACTLY ${questionCount} rigorous, distinct, high-quality assessment questions.
+IMPORTANT: You MUST generate exactly ${questionCount} questions in the "questions" array. Not 5, not fewer, not more. Exactly ${questionCount} question objects.
 
 SUBJECT: ${subjectName}
 ${topicName ? `TOPIC: ${topicName}` : ''}
@@ -105,7 +106,7 @@ ${materialsText ? `\n--- SUPPLIED STUDY MATERIALS ---\n${materialsText}\n` : ''}
 
 CRITICAL JSON OUTPUT REQUIREMENT:
 You MUST respond with valid JSON ONLY. Do not wrap in markdown or markdown backticks.
-The JSON must adhere to this exact schema:
+The JSON must adhere to this exact schema with exactly ${questionCount} items in the "questions" list:
 {
   "questions": [
     {
@@ -142,57 +143,74 @@ const generateFallbackQuestions = (config) => {
   const marksStr = String(config.marks || '1').toLowerCase();
   const assignedMarks = marksStr === '14' || marksStr === '14m' ? 14 : (marksStr === '2' || marksStr === '2m' ? 2 : 1);
 
+  const conceptAspects = [
+    { aspect: 'architectural principles and component hierarchy', focus: 'structural design and interaction' },
+    { aspect: 'concurrency, resource allocation, and synchronization', focus: 'runtime reliability and throughput' },
+    { aspect: 'state management, recovery protocols, and consistency guarantees', focus: 'fault tolerance and integrity' },
+    { aspect: 'performance bottlenecks, caching mechanisms, and latency trade-offs', focus: 'scalability and latency' },
+    { aspect: 'security boundaries, access authorization, and validation policies', focus: 'vulnerability mitigation' },
+    { aspect: 'algorithmic complexity, evaluation benchmarks, and optimizations', focus: 'computational efficiency' },
+    { aspect: 'distributed communication interfaces and data serialization protocols', focus: 'network transport' },
+    { aspect: 'lifecycle state machines, operational triggers, and event loops', focus: 'execution coordination' },
+    { aspect: 'memory addressing schemes, storage layers, and buffer cache policies', focus: 'storage hierarchy' },
+    { aspect: 'testing rubrics, diagnostic monitoring, and verification metrics', focus: 'system validation' }
+  ];
+
   const questions = [];
   for (let i = 0; i < count; i++) {
+    const aspectObj = conceptAspects[i % conceptAspects.length];
+    const aspectNum = Math.floor(i / conceptAspects.length) + 1;
+    const aspectSuffix = aspectNum > 1 ? ` (Dimension ${aspectNum})` : '';
+
     if (assignedMarks === 14 || config.questionFormat === 'long_answer') {
       questions.push({
-        questionText: `(a) Discuss in detail the architectural foundation and operational mechanisms of ${topic} in ${subject}. (7 Marks)\n(b) Analyze the key design trade-offs, optimization strategies, and real-world failure modes for ${topic}. (7 Marks)`,
+        questionText: `(a) Discuss in detail the ${aspectObj.aspect} of ${topic} in ${subject}.${aspectSuffix} (7 Marks)\n(b) Analyze the key design trade-offs, optimization strategies, and real-world failure recovery modes regarding ${aspectObj.focus}. (7 Marks)`,
         questionType: 'long_answer',
         difficulty: config.difficulty || 'Medium',
         marks: 14,
         options: [],
-        correctAnswer: `Part (a): 1. Architectural Foundation: Core components and state management.\n2. Operational Lifecycle: Execution workflow and synchronization.\nPart (b): 1. Trade-offs: Latency vs. Throughput.\n2. Real-world applications and failure prevention.`,
-        explanation: `Comprehensive 14-mark university exam assessment for ${subject} (${topic}).`,
+        correctAnswer: `Part (a): 1. Foundation: Explains ${aspectObj.aspect} with clean architectural boundaries.\n2. Operational Workflow: Step-by-step state transition and control.\nPart (b): 1. Trade-offs: Latency, resource contention, and throughput.\n2. Mitigation and empirical benchmarks.`,
+        explanation: `Comprehensive 14-mark university exam assessment for ${subject} (${topic} - ${aspectObj.focus}).`,
         rubric: [
-          { criterion: 'Part (a) Architecture and Mechanics', allocatedMarks: 7 },
-          { criterion: 'Part (b) Trade-offs and Case Analysis', allocatedMarks: 7 }
+          { criterion: `Part (a) Theoretical foundations of ${aspectObj.aspect}`, allocatedMarks: 7 },
+          { criterion: `Part (b) Practical analysis of ${aspectObj.focus}`, allocatedMarks: 7 }
         ],
         sourceReference: 'University Curriculum Standard',
         sourceType: 'general_knowledge'
       });
     } else if (assignedMarks === 2 || config.questionFormat === 'short_answer') {
       questions.push({
-        questionText: `Define ${topic} in the context of ${subject} and state its two primary operational objectives. [2 Marks]`,
+        questionText: `State two critical objectives of ${aspectObj.aspect} in ${topic} within ${subject}.${aspectSuffix} [2 Marks]`,
         questionType: 'single_choice',
         difficulty: config.difficulty || 'Medium',
         marks: 2,
         options: [
-          { id: 'A', text: `It acts as the core controller managing resource allocation and consistency.` },
-          { id: 'B', text: `It only stores static lookup tables without runtime validation.` },
-          { id: 'C', text: `It operates purely as an external diagnostic logging daemon.` },
-          { id: 'D', text: `It replaces the underlying hardware architecture completely.` }
+          { id: 'A', text: `Ensuring deterministic ${aspectObj.focus} and system consistency under variable workloads.` },
+          { id: 'B', text: `Completely bypassing compile-time type verification and hardware abstraction.` },
+          { id: 'C', text: `Limiting execution strictly to legacy single-threaded background environments.` },
+          { id: 'D', text: `Eliminating the need for state checks or recovery boundaries.` }
         ],
         correctAnswer: 'A',
         correctOptionId: 'A',
-        explanation: `${topic} is fundamentally responsible for coordinating execution and enforcing consistency in ${subject}.`,
+        explanation: `${aspectObj.aspect} in ${topic} is primarily responsible for guaranteeing deterministic ${aspectObj.focus}.`,
         sourceReference: 'University Curriculum Standard',
         sourceType: 'general_knowledge'
       });
     } else {
       questions.push({
-        questionText: `Which of the following statements is most accurate regarding ${topic} in ${subject}? (Question ${i + 1})`,
+        questionText: `Which of the following best describes the role of ${aspectObj.aspect} in ${topic} (${subject})? (Question ${i + 1})`,
         questionType: 'single_choice',
         difficulty: config.difficulty || 'Medium',
         marks: 1,
         options: [
-          { id: 'A', text: `It coordinates primary operational workflows and lifecycle execution for ${topic}.` },
-          { id: 'B', text: `It completely eliminates all external dependencies and hardware constraints.` },
-          { id: 'C', text: `It is only applicable in legacy single-user architectures.` },
-          { id: 'D', text: `It operates strictly without memory or runtime state management.` }
+          { id: 'A', text: `It coordinates primary operational workflows to maximize ${aspectObj.focus}.` },
+          { id: 'B', text: `It permanently disables memory allocation and network socket polling.` },
+          { id: 'C', text: `It is only applicable in offline simulation environments without persistence.` },
+          { id: 'D', text: `It replaces the hardware virtualization hypervisor entirely.` }
         ],
         correctAnswer: 'A',
         correctOptionId: 'A',
-        explanation: `${topic} is a core conceptual building block in ${subject} responsible for coordinating system execution and consistency.`,
+        explanation: `In ${subject}, ${aspectObj.aspect} provides the foundational mechanism for coordinating ${aspectObj.focus} in ${topic}.`,
         sourceReference: 'University Curriculum Standard',
         sourceType: 'general_knowledge'
       });

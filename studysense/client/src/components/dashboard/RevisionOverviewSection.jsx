@@ -22,7 +22,7 @@ const RevisionOverviewSection = ({ revisions = [] }) => {
         </div>
 
         <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 dark:bg-charcoal-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-          Module 6 Integration
+          Smart Planner
         </span>
       </div>
 
@@ -48,7 +48,7 @@ const RevisionOverviewSection = ({ revisions = [] }) => {
           ))}
         </div>
       ) : (
-        /* Honest empty state when Revision Planner is not yet implemented */
+        /* Honest empty state when Revision Planner is empty */
         <div className="mt-6 py-8 px-4 text-center rounded-xl bg-slate-50 dark:bg-charcoal-900/60 border border-dashed border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center">
           <div className="w-12 h-12 rounded-2xl bg-amber-100 dark:bg-amber-950/70 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-3">
             <Clock className="w-6 h-6" />
@@ -57,10 +57,10 @@ const RevisionOverviewSection = ({ revisions = [] }) => {
             No scheduled revisions
           </h4>
           <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mt-1 leading-relaxed">
-            Personalized revision planning will be introduced in <strong>Module 6: Revision Planner</strong>. It will calculate optimal review cycles based on your quiz mistakes and learning pace.
+            Personalized revision planning calculates optimal review cycles based on your quiz mistakes, topic mastery levels, and study schedule.
           </p>
           <div className="mt-4 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-500 dark:text-slate-400 bg-white dark:bg-charcoal-850 border border-slate-200 dark:border-slate-700">
-            <span>Awaiting Module 6: Revision Planner</span>
+            <span>Automated based on quiz attempts</span>
           </div>
         </div>
       )}

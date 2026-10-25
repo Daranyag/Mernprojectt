@@ -12,6 +12,7 @@ import RevisionOverviewSection from '../../components/dashboard/RevisionOverview
 import RecentActivitySection from '../../components/dashboard/RecentActivitySection';
 import DashboardSkeleton from '../../components/dashboard/DashboardSkeleton';
 import DashboardError from '../../components/dashboard/DashboardError';
+import FeatureGrid from '../../components/dashboard/FeatureGrid';
 
 const DashboardPage = () => {
   const { user } = useAuth();
@@ -65,6 +66,9 @@ const DashboardPage = () => {
           {/* Welcome Greeting Banner */}
           <WelcomeSection user={dashboardData?.user || user} />
 
+          {/* Quick Launch: All Features Visible At Dashboard Screen Top */}
+          <FeatureGrid />
+
           {/* 4 Summary Cards Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <SummaryCard
@@ -73,7 +77,7 @@ const DashboardPage = () => {
               subtitle="Enrolled curriculum"
               icon={BookOpen}
               accentColor="brand"
-              statusBadge={summary.subjectsCount > 0 ? `${summary.subjectsCount} Active` : 'Module 3'}
+              statusBadge={summary.subjectsCount > 0 ? `${summary.subjectsCount} Active` : 'Curriculum Ready'}
             />
 
             <SummaryCard
@@ -91,7 +95,7 @@ const DashboardPage = () => {
               subtitle="Topic assessments"
               icon={HelpCircle}
               accentColor="amber"
-              statusBadge={summary.quizzesCompleted > 0 ? `${summary.quizzesCompleted} Taken` : 'Module 5 Active'}
+              statusBadge={summary.quizzesCompleted > 0 ? `${summary.quizzesCompleted} Taken` : 'Available'}
             />
 
             <SummaryCard
@@ -106,7 +110,7 @@ const DashboardPage = () => {
             />
           </div>
 
-          {/* Module 4: Study Materials & Quick Notes Banner */}
+          {/* Study Materials & Quick Notes Banner */}
           <div className="bg-gradient-to-r from-indigo-50 via-white to-indigo-50/30 p-5 rounded-2xl border border-indigo-100 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-2xs">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-sm shrink-0">
@@ -115,7 +119,7 @@ const DashboardPage = () => {
               <div>
                 <div className="flex items-center gap-2">
                   <h3 className="text-base font-bold text-slate-900">Study Materials & Notes</h3>
-                  <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">Module 4</span>
+                  <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">Notes & Resources</span>
                 </div>
                 <p className="text-xs text-slate-500 mt-0.5">
                   Organize lecture notes and learning references across your enrolled subjects.
@@ -148,7 +152,7 @@ const DashboardPage = () => {
             </div>
           </div>
 
-          {/* Module 6: Mistake Book Callout (when student has saved mistakes) */}
+          {/* Mistake Book Callout (when student has saved mistakes) */}
           {(summary.mistakesNeedingReview > 0 || summary.mistakesCorrected > 0) && (
             <div className="bg-gradient-to-r from-rose-50 via-white to-rose-50/30 p-5 rounded-2xl border border-rose-100 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-2xs">
               <div className="flex items-center gap-4">
@@ -158,7 +162,7 @@ const DashboardPage = () => {
                 <div>
                   <div className="flex items-center gap-2">
                     <h3 className="text-base font-bold text-slate-900">Mistake Book & Practice</h3>
-                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-rose-100 text-rose-700">Module 6</span>
+                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-rose-100 text-rose-700">Self-Correction</span>
                   </div>
                   <p className="text-xs text-slate-500 mt-0.5">
                     Target missed quiz questions, write personal notes, and test yourself with the Practice Engine.
@@ -188,7 +192,7 @@ const DashboardPage = () => {
             </div>
           )}
 
-          {/* Module 7: Performance Analytics Callout Banner */}
+          {/* Performance Analytics Callout Banner */}
           <div className="bg-gradient-to-r from-violet-50 via-white to-violet-50/30 p-5 rounded-2xl border border-violet-100 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-2xs">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-xl bg-violet-600 text-white flex items-center justify-center shadow-sm shrink-0">
@@ -197,7 +201,7 @@ const DashboardPage = () => {
               <div>
                 <div className="flex items-center gap-2">
                   <h3 className="text-base font-bold text-slate-900">Performance Analytics & Recommendations</h3>
-                  <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-violet-100 text-violet-700">Module 7</span>
+                  <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-violet-100 text-violet-700">Performance Insights</span>
                 </div>
                 <p className="text-xs text-slate-500 mt-0.5">
                   Track topic mastery, evaluation accuracy, and data-driven recommendations tailored to your quiz results.

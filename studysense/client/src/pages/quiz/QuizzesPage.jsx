@@ -122,7 +122,7 @@ const QuizzesPage = () => {
           <div className="flex items-center gap-2.5">
             <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Quizzes & Assessments</h1>
             <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100">
-              Module 5
+              Evaluations
             </span>
           </div>
           <p className="text-sm text-slate-500 mt-1">
@@ -131,14 +131,6 @@ const QuizzesPage = () => {
         </div>
 
         <div className="flex items-center gap-2.5">
-          <Link
-            to="/question-bank"
-            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-xs transition-colors shrink-0"
-          >
-            <HelpCircle size={15} />
-            Question Bank
-          </Link>
-
           <button
             onClick={() => setIsAIQuizModalOpen(true)}
             className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium text-sm shadow-sm transition-all cursor-pointer shrink-0"
@@ -416,11 +408,16 @@ const QuizzesPage = () => {
       {/* AI Quiz Generator Modal */}
       <QuizGeneratorModal
         isOpen={isAIQuizModalOpen}
-        onClose={() => setIsAIQuizModalOpen(false)}
+        onClose={() => {
+          setIsAIQuizModalOpen(false);
+          fetchAttempts();
+          fetchQuizzes();
+        }}
         subjects={subjects}
         initialSubjectId={selectedSubject}
         onQuizCreated={() => {
           fetchQuizzes();
+          fetchAttempts();
         }}
       />
 

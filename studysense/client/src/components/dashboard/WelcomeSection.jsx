@@ -38,7 +38,7 @@ const WelcomeSection = ({ user }) => {
           </div>
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/20 backdrop-blur-sm border border-white/10">
             <Sparkles className="w-4 h-4 text-amber-300" />
-            <span>Module 2 Active</span>
+            <span>Smart Evaluator Active</span>
           </div>
         </div>
       </div>

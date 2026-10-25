@@ -52,32 +52,34 @@ const importantTopicsController = {
       let effectiveSourceScope = sourceScope;
       let fallbackNotice = null;
 
-      if (sourceScope === 'material_only' || sourceScope === 'combined') {
-        if (Array.isArray(sourceIds) && sourceIds.length > 0) {
-          const sources = await QuizSource.find({
-            _id: { $in: sourceIds },
-            user: req.user._id
-          });
-          extractedMaterials.push(
-            ...sources.map((s) => ({
-              id: s._id,
-              title: s.title,
-              text: s.extractedText
-            }))
-          );
+      // Extract custom attached sources if passed
+      if (Array.isArray(sourceIds) && sourceIds.length > 0) {
+        const sources = await QuizSource.find({
+          _id: { $in: sourceIds },
+          user: req.user._id
+        });
+        extractedMaterials.push(
+          ...sources.map((s) => ({
+            id: s._id,
+            title: s.title,
+            text: s.extractedText
+          }))
+        );
 
-          const materials = await StudyMaterial.find({
-            _id: { $in: sourceIds },
-            user: req.user._id
-          });
-          extractedMaterials.push(
-            ...materials.map((m) => ({
-              id: m._id,
-              title: m.title,
-              text: m.content || ''
-            }))
-          );
-        }
+        const materials = await StudyMaterial.find({
+          _id: { $in: sourceIds },
+          user: req.user._id
+        });
+        extractedMaterials.push(
+          ...materials.map((m) => ({
+            id: m._id,
+            title: m.title,
+            text: m.content || ''
+          }))
+        );
+      }
+
+      if (sourceScope === 'material_only' || sourceScope === 'combined') {
 
         // Check if any materials exist for this subject
         if (extractedMaterials.length === 0) {

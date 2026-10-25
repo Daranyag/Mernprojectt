@@ -404,6 +404,68 @@ class QuizService {
 
     return attempt;
   }
+
+  /**
+   * Record direct attempt (e.g. from AI Quiz Generator platform)
+   */
+  async recordDirectAttempt(userId, data) {
+    const {
+      quizId,
+      quizTitle,
+      subjectId,
+      score,
+      totalQuestions,
+      correctAnswers,
+      incorrectAnswers,
+      unansweredCount,
+      percentage,
+      results = []
+    } = data;
+
+    const subject = await Subject.findOne({ _id: subjectId, user: userId });
+    if (!subject) {
+      const error = new Error('Subject not found or access denied');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const attempt = new QuizAttempt({
+      user: userId,
+      quiz: quizId || null,
+      quizTitleSnapshot: quizTitle?.trim() || `${subject.name} Live Quiz`,
+      subject: subject._id,
+      score: Number(score) || 0,
+      totalQuestions: Number(totalQuestions) || 1,
+      correctAnswers: Number(correctAnswers) || 0,
+      incorrectAnswers: Number(incorrectAnswers) || 0,
+      unansweredCount: Number(unansweredCount) || 0,
+      percentage: Math.min(100, Math.max(0, Math.round(Number(percentage) || 0))),
+      results: results.map((r) => ({
+        questionId: r.questionId || null,
+        questionText: r.questionText || '',
+        topic: r.topicId || r.topic || null,
+        options: Array.isArray(r.options) ? r.options : [],
+        selectedOptionId: r.selectedOptionId || null,
+        correctOptionId: r.correctOptionId || 'A',
+        isCorrect: Boolean(r.isCorrect),
+        explanation: r.explanation || '',
+      })),
+      completedAt: new Date(),
+    });
+
+    await attempt.save();
+
+    // Auto-populate Mistake Book from incorrect answers
+    try {
+      const mistakeService = require('./mistake.service');
+      await mistakeService.processQuizAttemptMistakes(userId, attempt);
+    } catch (mistakeErr) {
+      console.warn('[QuizService] Failed to auto-process mistake book:', mistakeErr.message);
+    }
+
+    return attempt.populate(['subject', 'quiz']);
+  }
 }
+
 
 module.exports = new QuizService();

@@ -19,11 +19,17 @@ import {
   ChevronDown,
   ChevronUp,
   Tag,
-  GraduationCap
+  GraduationCap,
+  Upload,
+  Link2,
+  Globe,
+  X,
+  Check
 } from 'lucide-react';
 import DashboardLayout from '../../components/layouts/DashboardLayout';
 import { subjectService } from '../../services/subjectService';
 import importantTopicsService from '../../services/importantTopicsService';
+import { quizGeneratorService } from '../../services/quizGeneratorService';
 
 const ImportantTopicsPage = () => {
   const navigate = useNavigate();
@@ -40,9 +46,17 @@ const ImportantTopicsPage = () => {
   // Input states
   const [selectedSubjectId, setSelectedSubjectId] = useState(urlSubjectId);
   const [analysisTitle, setAnalysisTitle] = useState('');
-  const [sourceScope, setSourceScope] = useState('general_knowledge'); // 'material_only', 'general_knowledge', 'combined'
+  const [sourceScope, setSourceScope] = useState('my_materials'); // 'my_materials', 'combined', 'outer_sources'
   const [targetCount, setTargetCount] = useState(15);
   const [depthOfAnalysis, setDepthOfAnalysis] = useState('Standard');
+
+  // Grounding reference sources (PDFs, URLs, notes)
+  const [uploadedSources, setUploadedSources] = useState([]);
+  const [sourceUrlInput, setSourceUrlInput] = useState('');
+  const [sourceTextInput, setSourceTextInput] = useState('');
+  const [showTextModal, setShowTextModal] = useState(false);
+  const [sourceUploading, setSourceUploading] = useState(false);
+  const [sourceUploadSuccess, setSourceUploadSuccess] = useState('');
 
   // Active analysis view
   const [currentAnalysis, setCurrentAnalysis] = useState(null);
@@ -102,6 +116,107 @@ const ImportantTopicsPage = () => {
     }
   };
 
+  // Ingest external PDF/PPTX file directly
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const targetSubId = selectedSubjectId || (subjects[0]?._id || subjects[0]?.id);
+    if (!targetSubId) {
+      setError('Please select a subject first before uploading study materials.');
+      return;
+    }
+    setError(null);
+    setSourceUploadSuccess('');
+    setSourceUploading(true);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('subjectId', targetSubId);
+      formData.append('title', file.name);
+
+      const res = await quizGeneratorService.ingestFileUpload(formData);
+      if (res?.data) {
+        setUploadedSources((prev) => [...prev, res.data]);
+        setSourceUploadSuccess(`Uploaded "${file.name}" successfully!`);
+      }
+    } catch (err) {
+      console.error('File upload error:', err);
+      setError(err?.response?.data?.message || err?.message || 'Failed to upload document');
+    } finally {
+      setSourceUploading(false);
+      e.target.value = '';
+    }
+  };
+
+  // Ingest URL (webpage / youtube / notes)
+  const handleUrlSubmit = async (e) => {
+    e?.preventDefault();
+    if (!sourceUrlInput.trim()) return;
+    const targetSubId = selectedSubjectId || (subjects[0]?._id || subjects[0]?.id);
+    if (!targetSubId) {
+      setError('Please select a subject first before adding reference URL.');
+      return;
+    }
+    setError(null);
+    setSourceUploadSuccess('');
+    setSourceUploading(true);
+
+    try {
+      const res = await quizGeneratorService.ingestUrlSource({
+        subjectId: targetSubId,
+        url: sourceUrlInput.trim(),
+        title: sourceUrlInput.trim()
+      });
+      if (res?.data) {
+        setUploadedSources((prev) => [...prev, res.data]);
+        setSourceUploadSuccess(`Fetched content from URL successfully!`);
+        setSourceUrlInput('');
+      }
+    } catch (err) {
+      console.error('URL ingest error:', err);
+      setError(err?.response?.data?.message || err?.message || 'Failed to extract content from URL');
+    } finally {
+      setSourceUploading(false);
+    }
+  };
+
+  // Ingest pasted text
+  const handleTextSubmit = async () => {
+    if (!sourceTextInput.trim()) return;
+    const targetSubId = selectedSubjectId || (subjects[0]?._id || subjects[0]?.id);
+    if (!targetSubId) {
+      setError('Please select a subject first before adding notes.');
+      return;
+    }
+    setError(null);
+    setSourceUploadSuccess('');
+    setSourceUploading(true);
+
+    try {
+      const res = await quizGeneratorService.ingestTextSource({
+        subjectId: targetSubId,
+        content: sourceTextInput.trim(),
+        title: `Pasted Notes (${new Date().toLocaleTimeString()})`
+      });
+      if (res?.data) {
+        setUploadedSources((prev) => [...prev, res.data]);
+        setSourceUploadSuccess('Pasted notes ingested successfully!');
+        setSourceTextInput('');
+        setShowTextModal(false);
+      }
+    } catch (err) {
+      console.error('Text ingest error:', err);
+      setError(err?.response?.data?.message || err?.message || 'Failed to ingest notes');
+    } finally {
+      setSourceUploading(false);
+    }
+  };
+
+  const handleRemoveSource = (id) => {
+    setUploadedSources((prev) => prev.filter((s) => s._id !== id));
+  };
+
   // Run AI Analysis
   const handleAnalyzeTopics = async () => {
     const targetSubjectId = selectedSubjectId || (subjects[0]?._id || subjects[0]?.id);
@@ -114,10 +229,24 @@ const ImportantTopicsPage = () => {
     setError(null);
     setNotice(null);
     try {
+      // Map frontend 3 options to backend expectations:
+      // 'my_materials' -> 'material_only'
+      // 'combined' -> 'combined'
+      // 'outer_sources' -> 'general_knowledge'
+      let backendSourceScope = 'general_knowledge';
+      if (sourceScope === 'my_materials') {
+        backendSourceScope = 'material_only';
+      } else if (sourceScope === 'combined') {
+        backendSourceScope = 'combined';
+      } else if (sourceScope === 'outer_sources') {
+        backendSourceScope = 'general_knowledge';
+      }
+
       const payload = {
         subjectId: targetSubjectId,
         title: analysisTitle || `High-Priority Revision Topics - ${subjects.find(s => (s._id || s.id) === targetSubjectId)?.name || 'Subject'}`,
-        sourceScope,
+        sourceScope: backendSourceScope,
+        sourceIds: uploadedSources.map((s) => s._id),
         targetTopicCount: targetCount,
         depthOfAnalysis
       };
@@ -244,7 +373,7 @@ const ImportantTopicsPage = () => {
             <div>
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/15 backdrop-blur-xs text-xs font-semibold tracking-wide uppercase mb-3">
                 <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                Module 10: Revision Topic Prioritizer
+                Revision Topic Prioritizer
               </div>
               <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">
                 Important Topic Generator
@@ -406,34 +535,25 @@ const ImportantTopicsPage = () => {
               </h2>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-5">
+                {/* Option 1: My Material */}
                 <div
-                  onClick={() => setSourceScope('general_knowledge')}
+                  onClick={() => setSourceScope('my_materials')}
                   className={`p-4 rounded-2xl border-2 transition cursor-pointer ${
-                    sourceScope === 'general_knowledge'
+                    sourceScope === 'my_materials'
                       ? 'border-emerald-600 bg-emerald-50/40 shadow-xs'
                       : 'border-slate-200 hover:border-slate-300'
                   }`}
                 >
-                  <h3 className="font-bold text-xs text-slate-900 mb-1">Subject Curriculum</h3>
-                  <p className="text-xs text-slate-500 leading-relaxed">
-                    Identifies foundational topics and high-weightage concepts across university degree curriculum guidelines.
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-bold text-emerald-900">My Material</span>
+                    {sourceScope === 'my_materials' && <Check className="w-4 h-4 text-emerald-600" />}
+                  </div>
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    Uses your uploaded study materials and topic notes. If materials for some topics are missing, external sources are used automatically.
                   </p>
                 </div>
 
-                <div
-                  onClick={() => setSourceScope('material_only')}
-                  className={`p-4 rounded-2xl border-2 transition cursor-pointer ${
-                    sourceScope === 'material_only'
-                      ? 'border-emerald-600 bg-emerald-50/40 shadow-xs'
-                      : 'border-slate-200 hover:border-slate-300'
-                  }`}
-                >
-                  <h3 className="font-bold text-xs text-slate-900 mb-1">Selected Materials Only</h3>
-                  <p className="text-xs text-slate-500 leading-relaxed">
-                    Strictly grounded in your uploaded documents, lecture notes, or syllabus without external knowledge.
-                  </p>
-                </div>
-
+                {/* Option 2: My Material + Other Sources */}
                 <div
                   onClick={() => setSourceScope('combined')}
                   className={`p-4 rounded-2xl border-2 transition cursor-pointer ${
@@ -442,12 +562,157 @@ const ImportantTopicsPage = () => {
                       : 'border-slate-200 hover:border-slate-300'
                   }`}
                 >
-                  <h3 className="font-bold text-xs text-slate-900 mb-1">Combined Scope</h3>
-                  <p className="text-xs text-slate-500 leading-relaxed">
-                    Combines your specific lecture notes with standard university curriculum topics for complete coverage.
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-bold text-emerald-900">My Material + Other Sources</span>
+                    {sourceScope === 'combined' && <Check className="w-4 h-4 text-emerald-600" />}
+                  </div>
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    Combines your study notes with uploaded PDFs, reference URLs, and external university curriculum.
+                  </p>
+                </div>
+
+                {/* Option 3: Other Sources */}
+                <div
+                  onClick={() => setSourceScope('outer_sources')}
+                  className={`p-4 rounded-2xl border-2 transition cursor-pointer ${
+                    sourceScope === 'outer_sources'
+                      ? 'border-emerald-600 bg-emerald-50/40 shadow-xs'
+                      : 'border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-bold text-emerald-900">Other Sources</span>
+                    {sourceScope === 'outer_sources' && <Check className="w-4 h-4 text-emerald-600" />}
+                  </div>
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    Upload URLs or PDFs. If no source URL or file provided, AI automatically analyzes from university curriculum benchmarks.
                   </p>
                 </div>
               </div>
+
+              {/* Inline Upload & URL Attachment for Combined or Other Sources */}
+              {(sourceScope === 'combined' || sourceScope === 'outer_sources') && (
+                <div className="mt-4 p-4 rounded-2xl border border-emerald-100 bg-emerald-50/30 space-y-3 animate-fade-in">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold uppercase tracking-wider text-emerald-900 flex items-center gap-1.5">
+                      <Globe size={14} /> Attach Reference Sources (URL, PDF, Text)
+                    </span>
+                    <span className="text-[11px] text-slate-500">
+                      Optional • AI automatically sources if none provided
+                    </span>
+                  </div>
+
+                  {/* Inputs Row */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* URL input */}
+                    <form onSubmit={handleUrlSubmit} className="flex gap-2">
+                      <div className="relative flex-1">
+                        <Link2 size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                          type="url"
+                          placeholder="Paste reference URL (YouTube / article / doc)..."
+                          value={sourceUrlInput}
+                          onChange={(e) => setSourceUrlInput(e.target.value)}
+                          className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 bg-white text-xs focus:ring-2 focus:ring-emerald-500 text-slate-900"
+                        />
+                      </div>
+                      <button
+                        type="submit"
+                        disabled={sourceUploading || !sourceUrlInput.trim()}
+                        className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold disabled:opacity-50 transition cursor-pointer shrink-0"
+                      >
+                        Add URL
+                      </button>
+                    </form>
+
+                    {/* File upload button + Paste Text trigger */}
+                    <div className="flex items-center gap-2">
+                      <label className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl text-xs font-semibold text-slate-700 cursor-pointer transition">
+                        <Upload size={14} className="text-emerald-600" />
+                        <span>{sourceUploading ? 'Uploading...' : 'Upload PDF / PPTX'}</span>
+                        <input
+                          type="file"
+                          accept=".pdf,.pptx"
+                          onChange={handleFileUpload}
+                          disabled={sourceUploading}
+                          className="hidden"
+                        />
+                      </label>
+
+                      <button
+                        type="button"
+                        onClick={() => setShowTextModal(!showTextModal)}
+                        className="px-3 py-2 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl text-xs font-semibold text-slate-700 transition cursor-pointer"
+                      >
+                        Paste Text
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Expandable text paste box */}
+                  {showTextModal && (
+                    <div className="p-3 bg-white rounded-xl border border-slate-200 space-y-2 animate-fade-in">
+                      <textarea
+                        rows={3}
+                        placeholder="Paste syllabus excerpt, lecture notes, or key topic references..."
+                        value={sourceTextInput}
+                        onChange={(e) => setSourceTextInput(e.target.value)}
+                        className="w-full p-2.5 rounded-lg border border-slate-200 text-xs bg-slate-50 text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      />
+                      <div className="flex justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setShowTextModal(false)}
+                          className="px-3 py-1.5 text-xs text-slate-500 hover:text-slate-700"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleTextSubmit}
+                          disabled={sourceUploading || !sourceTextInput.trim()}
+                          className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold disabled:opacity-50"
+                        >
+                          Add Text Source
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Success Notice */}
+                  {sourceUploadSuccess && (
+                    <div className="text-xs text-emerald-600 font-medium flex items-center gap-1.5">
+                      <CheckCircle2 size={13} /> {sourceUploadSuccess}
+                    </div>
+                  )}
+
+                  {/* List of Attached Sources */}
+                  {uploadedSources.length > 0 && (
+                    <div className="space-y-1.5 pt-1">
+                      <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                        Attached Sources ({uploadedSources.length}):
+                      </span>
+                      <div className="flex flex-wrap gap-2">
+                        {uploadedSources.map((s) => (
+                          <span
+                            key={s._id}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white border border-emerald-200 text-xs font-medium text-emerald-900"
+                          >
+                            <span className="truncate max-w-[200px]">{s.title || s.fileName || 'Resource'}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveSource(s._id)}
+                              className="text-slate-400 hover:text-red-500 transition ml-1"
+                            >
+                              <X size={12} />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="mt-6 flex justify-end">
                 <button

@@ -31,12 +31,6 @@ export const NAV_ITEMS = [
     isImplemented: true,
   },
   {
-    name: 'Question Bank',
-    to: '/question-bank',
-    icon: HelpCircle,
-    isImplemented: true,
-  },
-  {
     name: 'Quizzes',
     to: '/quizzes',
     icon: GraduationCap,

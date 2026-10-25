@@ -114,9 +114,9 @@ const Topbar = ({ title = 'Dashboard' }) => {
         </div>
       </div>
 
-      {/* Desktop Horizontal Navigation Bar */}
-      <nav className="hidden xl:block border-t border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-charcoal-900/50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center gap-1 py-1.5 overflow-x-auto scrollbar-none">
+      {/* Top Navigation Bar with smooth horizontal touch scrolling */}
+      <nav className="border-t border-slate-100 dark:border-slate-800/80 bg-slate-50/80 dark:bg-charcoal-900/80 backdrop-blur-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center gap-1.5 py-2 overflow-x-auto scrollbar-none [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
           {NAV_ITEMS.map((item) => {
             const Icon = item.icon;
 
