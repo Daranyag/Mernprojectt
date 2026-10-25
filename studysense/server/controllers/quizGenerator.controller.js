@@ -3,7 +3,7 @@ const Subject = require('../models/Subject');
 const { Topic } = require('../models/Topic');
 const { Question } = require('../models/Question');
 const { Quiz } = require('../models/Quiz');
-const StudyMaterial = require('../models/StudyMaterial');
+const { StudyMaterial } = require('../models/StudyMaterial');
 const {
   normalizeText,
   extractTextFromPdf,

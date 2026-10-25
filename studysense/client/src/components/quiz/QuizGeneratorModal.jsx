@@ -229,144 +229,160 @@ export const QuizGeneratorModal = ({
   };
 
   const handleSubmitQuiz = () => {
-    let totalMarks = 0;
-    let score = 0;
-    let correctCount = 0;
-    let wrongCount = 0;
-    let unattemptedCount = 0;
+    try {
+      let totalMarks = 0;
+      let score = 0;
+      let correctCount = 0;
+      let wrongCount = 0;
+      let unattemptedCount = 0;
 
-    const details = generatedQuestions.map((q, idx) => {
-      const qMark = Number(q.marks) || (marksTier === '2m' ? 2 : marksTier === '14m' ? 14 : 1);
-      totalMarks += qMark;
+      const details = (generatedQuestions || []).map((q, idx) => {
+        const qMark = Number(q.marks) || (marksTier === '2m' ? 2 : marksTier === '14m' ? 14 : 1);
+        totalMarks += qMark;
 
-      const userAns = userAnswers[idx];
-      let isCorrect = false;
-      let earnedMark = 0;
+        const userAns = userAnswers[idx];
+        let isCorrect = false;
+        let earnedMark = 0;
 
-      if (!userAns) {
-        unattemptedCount++;
-      } else if (Array.isArray(q.options) && q.options.length > 0) {
-        // Find correct option
-        const correctOpt = q.options.find(o => o.isCorrect || o.id === q.correctOptionId || o.text === q.correctAnswer);
-        const userOpt = q.options.find(o => o.id === userAns || o.text === userAns);
-        
-        if (correctOpt && userOpt && (correctOpt.id === userOpt.id || correctOpt.text === userOpt.text)) {
-          isCorrect = true;
-          earnedMark = qMark;
-          correctCount++;
+        if (userAns === undefined || userAns === null || userAns === '') {
+          unattemptedCount++;
+        } else if (Array.isArray(q.options) && q.options.length > 0) {
+          // Find correct option
+          const correctOpt = q.options.find(o => o.isCorrect || o.id === q.correctOptionId || o.text === q.correctAnswer);
+          const userOpt = q.options.find(o => o.id === userAns || o.text === userAns);
+          
+          if (correctOpt && userOpt && (correctOpt.id === userOpt.id || correctOpt.text === userOpt.text)) {
+            isCorrect = true;
+            earnedMark = qMark;
+            correctCount++;
+          } else {
+            wrongCount++;
+          }
         } else {
-          wrongCount++;
+          // Descriptive 2M / 14M answer
+          if (typeof userAns === 'string' && userAns.trim().length >= 10) {
+            isCorrect = true; // Attempted descriptive response
+            earnedMark = qMark;
+            correctCount++;
+          } else {
+            wrongCount++;
+          }
         }
-      } else {
-        // Descriptive 2M / 14M answer
-        if (typeof userAns === 'string' && userAns.trim().length >= 10) {
-          isCorrect = true; // Attempted descriptive response
-          earnedMark = qMark;
-          correctCount++;
-        } else {
-          wrongCount++;
-        }
+
+        score += earnedMark;
+
+        return {
+          questionIndex: idx,
+          isCorrect,
+          earnedMark,
+          totalMark: qMark,
+          userAnswer: userAns
+        };
+      });
+
+      const accuracy = totalMarks > 0 ? Math.round((score / totalMarks) * 100) : 0;
+
+      setEvaluationResult({
+        totalMarks,
+        score,
+        accuracy,
+        correctCount,
+        wrongCount,
+        unattemptedCount,
+        details
+      });
+
+      // Transition immediately to evaluation screen
+      setViewMode('evaluation');
+
+      // Auto-record wrong questions into Mistake Book for this subject and topic asynchronously
+      const wrongQuestionsToRecord = (generatedQuestions || [])
+        .map((q, idx) => ({ q, detail: details[idx] }))
+        .filter(({ detail }) => detail && !detail.isCorrect && detail.userAnswer)
+        .map(({ q, detail }) => {
+          let correctOptId = q.correctOptionId || 'A';
+          if (Array.isArray(q.options) && q.options.length > 0) {
+            const cOpt = q.options.find(o => o.isCorrect || o.id === q.correctOptionId || o.text === q.correctAnswer);
+            if (cOpt) correctOptId = cOpt.id || cOpt.text;
+          }
+
+          return {
+            questionText: q.questionText,
+            options: Array.isArray(q.options) ? q.options.map((opt, i) => ({
+              id: opt.id || String.fromCharCode(65 + i),
+              text: opt.text || String(opt),
+            })) : [],
+            selectedOptionId: typeof detail.userAnswer === 'string' ? detail.userAnswer : JSON.stringify(detail.userAnswer),
+            correctOptionId: correctOptId,
+            explanation: q.explanation || q.expectedAnswer || '',
+            topicId: selectedTopicId || undefined,
+          };
+        });
+
+      if (wrongQuestionsToRecord.length > 0 && selectedSubjectId && mistakeService?.recordDirectMistakes) {
+        mistakeService.recordDirectMistakes({
+          subjectId: selectedSubjectId,
+          topicId: selectedTopicId || undefined,
+          mistakes: wrongQuestionsToRecord,
+        }).catch(err => {
+          console.warn('Could not auto-record mistakes:', err?.message);
+        });
       }
 
-      score += earnedMark;
+      // Record this completed quiz attempt in QuizAttempt history asynchronously
+      if (selectedSubjectId && questionService?.recordDirectAttempt) {
+        const attemptResults = (generatedQuestions || []).map((q, idx) => {
+          const detail = details[idx];
+          let correctOptId = q.correctOptionId || 'A';
+          if (Array.isArray(q.options) && q.options.length > 0) {
+            const cOpt = q.options.find(o => o.isCorrect || o.id === q.correctOptionId || o.text === q.correctAnswer);
+            if (cOpt) correctOptId = cOpt.id || cOpt.text;
+          }
 
-      return {
-        questionIndex: idx,
-        isCorrect,
-        earnedMark,
-        totalMark: qMark,
-        userAnswer: userAns
-      };
-    });
+          return {
+            questionText: q.questionText,
+            topicId: selectedTopicId || undefined,
+            options: Array.isArray(q.options) ? q.options.map((opt, i) => ({
+              id: opt.id || String.fromCharCode(65 + i),
+              text: opt.text || String(opt),
+            })) : [],
+            selectedOptionId: detail?.userAnswer ? (typeof detail.userAnswer === 'string' ? detail.userAnswer : JSON.stringify(detail.userAnswer)) : null,
+            correctOptionId: correctOptId,
+            isCorrect: Boolean(detail?.isCorrect),
+            explanation: q.explanation || q.expectedAnswer || '',
+          };
+        });
 
-    const accuracy = totalMarks > 0 ? Math.round((score / totalMarks) * 100) : 0;
-
-    setEvaluationResult({
-      totalMarks,
-      score,
-      accuracy,
-      correctCount,
-      wrongCount,
-      unattemptedCount,
-      details
-    });
-
-    // Auto-record wrong questions into Mistake Book for this subject and topic
-    const wrongQuestionsToRecord = generatedQuestions
-      .map((q, idx) => ({ q, detail: details[idx] }))
-      .filter(({ detail }) => detail && !detail.isCorrect && detail.userAnswer)
-      .map(({ q, detail }) => {
-        let correctOptId = q.correctOptionId || 'A';
-        if (Array.isArray(q.options) && q.options.length > 0) {
-          const cOpt = q.options.find(o => o.isCorrect || o.id === q.correctOptionId || o.text === q.correctAnswer);
-          if (cOpt) correctOptId = cOpt.id || cOpt.text;
-        }
-
-        return {
-          questionText: q.questionText,
-          options: Array.isArray(q.options) ? q.options.map((opt, i) => ({
-            id: opt.id || String.fromCharCode(65 + i),
-            text: opt.text || String(opt),
-          })) : [],
-          selectedOptionId: typeof detail.userAnswer === 'string' ? detail.userAnswer : JSON.stringify(detail.userAnswer),
-          correctOptionId: correctOptId,
-          explanation: q.explanation || q.expectedAnswer || '',
-          topicId: selectedTopicId || undefined,
-        };
+        questionService.recordDirectAttempt({
+          quizTitle: quizTitle || `${currentSubject?.name || 'Subject'}: ${marksTier.toUpperCase()} Live Quiz`,
+          subjectId: selectedSubjectId,
+          score,
+          totalQuestions: generatedQuestions.length,
+          correctAnswers: correctCount,
+          incorrectAnswers: wrongCount,
+          unansweredCount,
+          percentage: accuracy,
+          results: attemptResults,
+        }).then(() => {
+          if (onQuizCreated) onQuizCreated();
+        }).catch(err => {
+          console.warn('Could not auto-save quiz attempt to history:', err?.message);
+        });
+      }
+    } catch (err) {
+      console.error('Quiz evaluation error:', err);
+      // Fallback basic evaluation
+      setEvaluationResult({
+        totalMarks: generatedQuestions.length * 2,
+        score: 0,
+        accuracy: 0,
+        correctCount: 0,
+        wrongCount: generatedQuestions.length,
+        unattemptedCount: 0,
+        details: []
       });
-
-    if (wrongQuestionsToRecord.length > 0 && selectedSubjectId) {
-      mistakeService.recordDirectMistakes({
-        subjectId: selectedSubjectId,
-        topicId: selectedTopicId || undefined,
-        mistakes: wrongQuestionsToRecord,
-      }).catch(err => {
-        console.warn('Could not auto-record mistakes:', err?.message);
-      });
+      setViewMode('evaluation');
     }
-
-    // Record this completed quiz attempt in QuizAttempt history
-    if (selectedSubjectId) {
-      const attemptResults = generatedQuestions.map((q, idx) => {
-        const detail = details[idx];
-        let correctOptId = q.correctOptionId || 'A';
-        if (Array.isArray(q.options) && q.options.length > 0) {
-          const cOpt = q.options.find(o => o.isCorrect || o.id === q.correctOptionId || o.text === q.correctAnswer);
-          if (cOpt) correctOptId = cOpt.id || cOpt.text;
-        }
-
-        return {
-          questionText: q.questionText,
-          topicId: selectedTopicId || undefined,
-          options: Array.isArray(q.options) ? q.options.map((opt, i) => ({
-            id: opt.id || String.fromCharCode(65 + i),
-            text: opt.text || String(opt),
-          })) : [],
-          selectedOptionId: detail?.userAnswer ? (typeof detail.userAnswer === 'string' ? detail.userAnswer : JSON.stringify(detail.userAnswer)) : null,
-          correctOptionId: correctOptId,
-          isCorrect: Boolean(detail?.isCorrect),
-          explanation: q.explanation || q.expectedAnswer || '',
-        };
-      });
-
-      questionService.recordDirectAttempt({
-        quizTitle: quizTitle || `${currentSubject?.name || 'Subject'}: ${marksTier.toUpperCase()} Live Quiz`,
-        subjectId: selectedSubjectId,
-        score,
-        totalQuestions: generatedQuestions.length,
-        correctAnswers: correctCount,
-        incorrectAnswers: wrongCount,
-        unansweredCount,
-        percentage: accuracy,
-        results: attemptResults,
-      }).then(() => {
-        if (onQuizCreated) onQuizCreated();
-      }).catch(err => {
-        console.warn('Could not auto-save quiz attempt to history:', err?.message);
-      });
-    }
-
-    setViewMode('evaluation');
   };
 
   const handleRetakeQuiz = () => {

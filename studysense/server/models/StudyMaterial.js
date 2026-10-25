@@ -139,7 +139,7 @@ studyMaterialSchema.methods.toSafeObject = function (extra = {}) {
 
 const StudyMaterial = mongoose.model('StudyMaterial', studyMaterialSchema);
 
-module.exports = {
-  StudyMaterial,
-  MATERIAL_TYPES,
-};
+StudyMaterial.StudyMaterial = StudyMaterial;
+StudyMaterial.MATERIAL_TYPES = MATERIAL_TYPES;
+
+module.exports = StudyMaterial;
