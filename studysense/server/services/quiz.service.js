@@ -440,16 +440,20 @@ class QuizService {
       incorrectAnswers: Number(incorrectAnswers) || 0,
       unansweredCount: Number(unansweredCount) || 0,
       percentage: Math.min(100, Math.max(0, Math.round(Number(percentage) || 0))),
-      results: results.map((r) => ({
-        questionId: r.questionId || null,
-        questionText: r.questionText || '',
-        topic: r.topicId || r.topic || null,
-        options: Array.isArray(r.options) ? r.options : [],
-        selectedOptionId: r.selectedOptionId || null,
-        correctOptionId: r.correctOptionId || 'A',
-        isCorrect: Boolean(r.isCorrect),
-        explanation: r.explanation || '',
-      })),
+      results: results.map((r) => {
+        const topicVal = r.topicId || r.topic;
+        const validTopic = topicVal && mongoose.Types.ObjectId.isValid(topicVal) ? topicVal : null;
+        return {
+          questionId: r.questionId && mongoose.Types.ObjectId.isValid(r.questionId) ? r.questionId : null,
+          questionText: r.questionText || '',
+          topic: validTopic,
+          options: Array.isArray(r.options) ? r.options : [],
+          selectedOptionId: r.selectedOptionId || null,
+          correctOptionId: r.correctOptionId || 'A',
+          isCorrect: Boolean(r.isCorrect),
+          explanation: r.explanation || '',
+        };
+      }),
       completedAt: new Date(),
     });
 

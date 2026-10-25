@@ -50,12 +50,15 @@ export const QuizGeneratorModal = ({
   useEffect(() => {
     if (initialSubjectId) {
       setSelectedSubjectId(initialSubjectId);
+    } else if (!selectedSubjectId && subjects.length > 0) {
+      setSelectedSubjectId(subjects[0]._id || subjects[0].id || '');
     }
-  }, [initialSubjectId]);
+  }, [initialSubjectId, subjects, selectedSubjectId]);
 
   if (!isOpen) return null;
 
-  const currentSubject = subjects.find((s) => s._id === selectedSubjectId);
+  const currentSubject = subjects.find((s) => (s._id || s.id) === selectedSubjectId) || subjects[0];
+  const effectiveSubjectId = selectedSubjectId || (currentSubject?._id || currentSubject?.id);
   const currentTopics = currentSubject?.topics || [];
   const availableUnits = Array.from(new Set(currentTopics.map((t) => t.unit).filter(Boolean)));
 
@@ -319,9 +322,11 @@ export const QuizGeneratorModal = ({
           };
         });
 
-      if (wrongQuestionsToRecord.length > 0 && selectedSubjectId && mistakeService?.recordDirectMistakes) {
+      const targetSubId = selectedSubjectId || effectiveSubjectId;
+
+      if (wrongQuestionsToRecord.length > 0 && targetSubId && mistakeService?.recordDirectMistakes) {
         mistakeService.recordDirectMistakes({
-          subjectId: selectedSubjectId,
+          subjectId: targetSubId,
           topicId: selectedTopicId || undefined,
           mistakes: wrongQuestionsToRecord,
         }).catch(err => {
@@ -330,7 +335,7 @@ export const QuizGeneratorModal = ({
       }
 
       // Record this completed quiz attempt in QuizAttempt history asynchronously
-      if (selectedSubjectId && questionService?.recordDirectAttempt) {
+      if (targetSubId && questionService?.recordDirectAttempt) {
         const attemptResults = (generatedQuestions || []).map((q, idx) => {
           const detail = details[idx];
           let correctOptId = q.correctOptionId || 'A';
@@ -355,7 +360,7 @@ export const QuizGeneratorModal = ({
 
         questionService.recordDirectAttempt({
           quizTitle: quizTitle || `${currentSubject?.name || 'Subject'}: ${marksTier.toUpperCase()} Live Quiz`,
-          subjectId: selectedSubjectId,
+          subjectId: targetSubId,
           score,
           totalQuestions: generatedQuestions.length,
           correctAnswers: correctCount,
