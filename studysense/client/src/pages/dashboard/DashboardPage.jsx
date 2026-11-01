@@ -8,7 +8,7 @@ import WelcomeSection from '../../components/dashboard/WelcomeSection';
 import SummaryCard from '../../components/dashboard/SummaryCard';
 import SubjectOverviewSection from '../../components/dashboard/SubjectOverviewSection';
 import QuizPerformanceSection from '../../components/dashboard/QuizPerformanceSection';
-import RevisionOverviewSection from '../../components/dashboard/RevisionOverviewSection';
+import QuickNotesScratchpad from '../../components/dashboard/QuickNotesScratchpad';
 import RecentActivitySection from '../../components/dashboard/RecentActivitySection';
 import DashboardSkeleton from '../../components/dashboard/DashboardSkeleton';
 import DashboardError from '../../components/dashboard/DashboardError';
@@ -240,9 +240,9 @@ const DashboardPage = () => {
             />
           </div>
 
-          {/* Revisions & Recent Activity 2-Column Section */}
+          {/* Quick Notes & Recent Activity 2-Column Section */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <RevisionOverviewSection revisions={dashboardData?.upcomingRevisions || []} />
+            <QuickNotesScratchpad />
             <RecentActivitySection activities={dashboardData?.recentActivity || []} />
           </div>
         </div>

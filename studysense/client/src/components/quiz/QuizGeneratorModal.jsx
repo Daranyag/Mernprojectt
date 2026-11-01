@@ -417,23 +417,24 @@ export const QuizGeneratorModal = ({
   const handleSaveAsQuiz = async () => {
     if (generatedQuestions.length === 0) return;
     setSavingQuiz(true);
-    try {
-      const targetSubId = selectedSubjectId || effectiveSubjectId || (subjects[0]?._id || subjects[0]?.id);
+    setError('');
 
+    try {
       // 1. Save generated questions into Question Bank
       const savedRes = await quizGeneratorService.saveGeneratedQuestions({
-        subjectId: targetSubId,
+        subjectId: selectedSubjectId,
         topicId: selectedTopicId || undefined,
         questions: generatedQuestions
       });
 
-      const questionIds = savedRes?.data?.questionIds || (savedRes?.data?.questions || []).map((q) => q._id || q.id);
+      const savedQuestions = savedRes?.data?.questions || [];
+      const questionIds = savedQuestions.map((q) => q._id || q.id);
 
       // 2. Create the Quiz in the quiz system
-      const finalTitle = quizTitle || `${currentSubject?.name || 'Subject'}: ${marksTier.toUpperCase()} Quiz`;
+      const finalTitle = quizTitle || `${currentSubject?.name}: ${marksTier.toUpperCase()} Quiz`;
       const quizRes = await questionService.createQuiz({
         title: finalTitle,
-        subject: targetSubId,
+        subject: selectedSubjectId,
         topic: selectedTopicId || null,
         description: `AI-generated ${difficulty} ${marksTier.toUpperCase()} quiz with ${questionIds.length} questions.`,
         questionIds: questionIds,
