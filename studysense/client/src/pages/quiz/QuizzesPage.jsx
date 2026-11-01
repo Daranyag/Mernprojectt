@@ -26,12 +26,13 @@ const QuizzesPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const urlSubjectId = searchParams.get('subjectId') || '';
+  const urlTab = searchParams.get('tab') || 'quizzes';
   const autoGenerate = searchParams.get('generate') === 'true';
 
   const [quizzes, setQuizzes] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [attempts, setAttempts] = useState([]);
-  const [activeTab, setActiveTab] = useState('quizzes'); // 'quizzes' or 'history'
+  const [activeTab, setActiveTab] = useState(urlTab === 'history' ? 'history' : 'quizzes'); // 'quizzes' or 'history'
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -93,6 +94,13 @@ const QuizzesPage = () => {
     loadSubjects();
     fetchAttempts();
   }, [loadSubjects, fetchAttempts]);
+
+  useEffect(() => {
+    if (urlTab === 'history') {
+      setActiveTab('history');
+      fetchAttempts();
+    }
+  }, [urlTab, fetchAttempts]);
 
   useEffect(() => {
     fetchQuizzes();
@@ -168,7 +176,10 @@ const QuizzesPage = () => {
         </button>
 
         <button
-          onClick={() => setActiveTab('history')}
+          onClick={() => {
+            setActiveTab('history');
+            fetchAttempts();
+          }}
           className={`flex items-center gap-2 px-4 py-2 font-semibold text-sm rounded-xl transition-colors ${
             activeTab === 'history'
               ? 'bg-indigo-600 text-white shadow-xs'

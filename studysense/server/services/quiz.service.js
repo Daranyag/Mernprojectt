@@ -422,16 +422,27 @@ class QuizService {
       results = []
     } = data;
 
-    const subject = await Subject.findOne({ _id: subjectId, user: userId });
+    let subject = null;
+    if (subjectId && mongoose.Types.ObjectId.isValid(subjectId)) {
+      subject = await Subject.findOne({ _id: subjectId, user: userId });
+    }
     if (!subject) {
-      const error = new Error('Subject not found or access denied');
-      error.statusCode = 404;
-      throw error;
+      subject = await Subject.findOne({ user: userId });
+    }
+    if (!subject) {
+      // Create a default subject for the user if none exists
+      subject = await Subject.create({
+        user: userId,
+        name: 'General Assessment',
+        code: 'GEN101',
+        description: 'General Curriculum & Practice Quizzes',
+        color: '#6366F1'
+      });
     }
 
     const attempt = new QuizAttempt({
       user: userId,
-      quiz: quizId || null,
+      quiz: quizId && mongoose.Types.ObjectId.isValid(quizId) ? quizId : null,
       quizTitleSnapshot: quizTitle?.trim() || `${subject.name} Live Quiz`,
       subject: subject._id,
       score: Number(score) || 0,
@@ -440,18 +451,37 @@ class QuizService {
       incorrectAnswers: Number(incorrectAnswers) || 0,
       unansweredCount: Number(unansweredCount) || 0,
       percentage: Math.min(100, Math.max(0, Math.round(Number(percentage) || 0))),
-      results: results.map((r) => {
+      results: results.map((r, rIdx) => {
         const topicVal = r.topicId || r.topic;
         const validTopic = topicVal && mongoose.Types.ObjectId.isValid(topicVal) ? topicVal : null;
+        
+        let sanitizedOptions = Array.isArray(r.options)
+          ? r.options
+              .filter((opt) => opt && (opt.text !== undefined || opt.id !== undefined))
+              .map((opt, oIdx) => ({
+                id: String(opt.id || String.fromCharCode(65 + oIdx)).trim() || String.fromCharCode(65 + oIdx),
+                text: String(opt.text || opt.id || `Option ${oIdx + 1}`).trim() || `Option ${oIdx + 1}`,
+              }))
+          : [];
+
+        // Schema requires options to have id and text if non-empty; if empty (descriptive), provide default descriptive placeholder
+        if (sanitizedOptions.length === 0) {
+          sanitizedOptions = [
+            { id: 'DESCRIPTIVE', text: 'Descriptive assessment answer' }
+          ];
+        }
+
+        const validCorrectOptionId = String(r.correctOptionId || sanitizedOptions[0]?.id || 'A').trim() || 'A';
+
         return {
           questionId: r.questionId && mongoose.Types.ObjectId.isValid(r.questionId) ? r.questionId : null,
-          questionText: r.questionText || '',
+          questionText: String(r.questionText || `Question ${rIdx + 1}`).trim() || `Question ${rIdx + 1}`,
           topic: validTopic,
-          options: Array.isArray(r.options) ? r.options : [],
-          selectedOptionId: r.selectedOptionId || null,
-          correctOptionId: r.correctOptionId || 'A',
+          options: sanitizedOptions,
+          selectedOptionId: r.selectedOptionId ? String(r.selectedOptionId).trim() : null,
+          correctOptionId: validCorrectOptionId,
           isCorrect: Boolean(r.isCorrect),
-          explanation: r.explanation || '',
+          explanation: String(r.explanation || '').trim(),
         };
       }),
       completedAt: new Date(),

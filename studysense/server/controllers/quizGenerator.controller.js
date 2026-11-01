@@ -411,17 +411,21 @@ const quizGeneratorController = {
         quizTitle = ''
       } = req.body;
 
-      if (!subjectId) {
-        return res.status(400).json({ success: false, message: 'Subject reference is required.' });
+      let subject = null;
+      if (subjectId && require('mongoose').Types.ObjectId.isValid(subjectId)) {
+        subject = await Subject.findOne({ _id: subjectId, user: req.user._id });
       }
-
-      if (!Array.isArray(questions) || questions.length === 0) {
-        return res.status(400).json({ success: false, message: 'No questions provided to save.' });
-      }
-
-      const subject = await Subject.findOne({ _id: subjectId, user: req.user._id });
       if (!subject) {
-        return res.status(404).json({ success: false, message: 'Subject not found.' });
+        subject = await Subject.findOne({ user: req.user._id });
+      }
+      if (!subject) {
+        subject = await Subject.create({
+          user: req.user._id,
+          name: 'General Assessment',
+          code: 'GEN101',
+          description: 'General Curriculum & Practice Quizzes',
+          color: '#6366F1'
+        });
       }
 
       const savedQuestionDocs = [];

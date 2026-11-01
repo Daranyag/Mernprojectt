@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Sparkles, X, AlertCircle, CheckCircle2, BookOpen, Layers, 
   HelpCircle, Check, ArrowRight, ArrowLeft, Award, RotateCcw, 
-  XCircle, FileText, ChevronRight, BookMarked, Upload, Link2, PlusCircle, Trash2, Globe
+  XCircle, FileText, ChevronRight, BookMarked, Upload, Link2, PlusCircle, Trash2, Globe, History
 } from 'lucide-react';
 import quizGeneratorService from '../../services/quizGeneratorService';
 import { questionService } from '../../services/quizService';
@@ -15,6 +16,7 @@ export const QuizGeneratorModal = ({
   initialSubjectId = '',
   onQuizCreated
 }) => {
+  const navigate = useNavigate();
   const [selectedSubjectId, setSelectedSubjectId] = useState(initialSubjectId || (subjects[0]?._id || ''));
   const [selectedUnit, setSelectedUnit] = useState('');
   const [selectedTopicId, setSelectedTopicId] = useState('');
@@ -46,6 +48,8 @@ export const QuizGeneratorModal = ({
   const [currentQIndex, setCurrentQIndex] = useState(0);
   const [userAnswers, setUserAnswers] = useState({}); // { [index]: selectedOptionIdOrText }
   const [evaluationResult, setEvaluationResult] = useState(null);
+  const [lastRecordedAttemptId, setLastRecordedAttemptId] = useState(null);
+  const [submittingQuiz, setSubmittingQuiz] = useState(false);
 
   useEffect(() => {
     if (initialSubjectId) {
@@ -231,8 +235,10 @@ export const QuizGeneratorModal = ({
     }));
   };
 
-  const handleSubmitQuiz = () => {
+  const handleSubmitQuiz = async () => {
     try {
+      setSubmittingQuiz(true);
+      setError('');
       let totalMarks = 0;
       let score = 0;
       let correctCount = 0;
@@ -295,9 +301,6 @@ export const QuizGeneratorModal = ({
         details
       });
 
-      // Transition immediately to evaluation screen
-      setViewMode('evaluation');
-
       // Auto-record wrong questions into Mistake Book for this subject and topic asynchronously
       const wrongQuestionsToRecord = (generatedQuestions || [])
         .map((q, idx) => ({ q, detail: details[idx] }))
@@ -314,7 +317,7 @@ export const QuizGeneratorModal = ({
             options: Array.isArray(q.options) ? q.options.map((opt, i) => ({
               id: opt.id || String.fromCharCode(65 + i),
               text: opt.text || String(opt),
-            })) : [],
+            })) : [{ id: 'A', text: 'Descriptive' }],
             selectedOptionId: typeof detail.userAnswer === 'string' ? detail.userAnswer : JSON.stringify(detail.userAnswer),
             correctOptionId: correctOptId,
             explanation: q.explanation || q.expectedAnswer || '',
@@ -322,7 +325,7 @@ export const QuizGeneratorModal = ({
           };
         });
 
-      const targetSubId = selectedSubjectId || effectiveSubjectId;
+      const targetSubId = selectedSubjectId || effectiveSubjectId || (subjects[0]?._id || subjects[0]?.id);
 
       if (wrongQuestionsToRecord.length > 0 && targetSubId && mistakeService?.recordDirectMistakes) {
         mistakeService.recordDirectMistakes({
@@ -334,7 +337,7 @@ export const QuizGeneratorModal = ({
         });
       }
 
-      // Record this completed quiz attempt in QuizAttempt history asynchronously
+      // Record this completed quiz attempt in QuizAttempt history
       if (targetSubId && questionService?.recordDirectAttempt) {
         const attemptResults = (generatedQuestions || []).map((q, idx) => {
           const detail = details[idx];
@@ -344,36 +347,48 @@ export const QuizGeneratorModal = ({
             if (cOpt) correctOptId = cOpt.id || cOpt.text;
           }
 
+          let formattedOptions = Array.isArray(q.options) && q.options.length > 0
+            ? q.options.map((opt, i) => ({
+                id: String(opt.id || String.fromCharCode(65 + i)).trim(),
+                text: String(opt.text || opt.id || `Option ${i + 1}`).trim(),
+              }))
+            : [{ id: 'DESCRIPTIVE', text: 'Descriptive assessment answer' }];
+
           return {
-            questionText: q.questionText,
+            questionText: q.questionText || `Question ${idx + 1}`,
             topicId: selectedTopicId || undefined,
-            options: Array.isArray(q.options) ? q.options.map((opt, i) => ({
-              id: opt.id || String.fromCharCode(65 + i),
-              text: opt.text || String(opt),
-            })) : [],
+            options: formattedOptions,
             selectedOptionId: detail?.userAnswer ? (typeof detail.userAnswer === 'string' ? detail.userAnswer : JSON.stringify(detail.userAnswer)) : null,
-            correctOptionId: correctOptId,
+            correctOptionId: correctOptId || formattedOptions[0]?.id || 'A',
             isCorrect: Boolean(detail?.isCorrect),
             explanation: q.explanation || q.expectedAnswer || '',
           };
         });
 
-        questionService.recordDirectAttempt({
-          quizTitle: quizTitle || `${currentSubject?.name || 'Subject'}: ${marksTier.toUpperCase()} Live Quiz`,
-          subjectId: targetSubId,
-          score,
-          totalQuestions: generatedQuestions.length,
-          correctAnswers: correctCount,
-          incorrectAnswers: wrongCount,
-          unansweredCount,
-          percentage: accuracy,
-          results: attemptResults,
-        }).then(() => {
+        try {
+          const res = await questionService.recordDirectAttempt({
+            quizTitle: quizTitle || `${currentSubject?.name || 'Subject'}: ${marksTier.toUpperCase()} Live Quiz`,
+            subjectId: targetSubId,
+            score,
+            totalQuestions: generatedQuestions.length,
+            correctAnswers: correctCount,
+            incorrectAnswers: wrongCount,
+            unansweredCount,
+            percentage: accuracy,
+            results: attemptResults,
+          });
+
+          if (res?.data?.data?._id) {
+            setLastRecordedAttemptId(res.data.data._id);
+          }
           if (onQuizCreated) onQuizCreated();
-        }).catch(err => {
-          console.warn('Could not auto-save quiz attempt to history:', err?.message);
-        });
+        } catch (saveErr) {
+          console.error('[QuizGen] Error auto-saving quiz attempt to history:', saveErr?.response?.data?.message || saveErr?.message);
+        }
       }
+
+      // Transition to evaluation screen
+      setViewMode('evaluation');
     } catch (err) {
       console.error('Quiz evaluation error:', err);
       // Fallback basic evaluation
@@ -387,6 +402,8 @@ export const QuizGeneratorModal = ({
         details: []
       });
       setViewMode('evaluation');
+    } finally {
+      setSubmittingQuiz(false);
     }
   };
 
@@ -400,24 +417,23 @@ export const QuizGeneratorModal = ({
   const handleSaveAsQuiz = async () => {
     if (generatedQuestions.length === 0) return;
     setSavingQuiz(true);
-    setError('');
-
     try {
+      const targetSubId = selectedSubjectId || effectiveSubjectId || (subjects[0]?._id || subjects[0]?.id);
+
       // 1. Save generated questions into Question Bank
       const savedRes = await quizGeneratorService.saveGeneratedQuestions({
-        subjectId: selectedSubjectId,
+        subjectId: targetSubId,
         topicId: selectedTopicId || undefined,
         questions: generatedQuestions
       });
 
-      const savedQuestions = savedRes?.data?.questions || [];
-      const questionIds = savedQuestions.map((q) => q._id || q.id);
+      const questionIds = savedRes?.data?.questionIds || (savedRes?.data?.questions || []).map((q) => q._id || q.id);
 
       // 2. Create the Quiz in the quiz system
-      const finalTitle = quizTitle || `${currentSubject?.name}: ${marksTier.toUpperCase()} Quiz`;
+      const finalTitle = quizTitle || `${currentSubject?.name || 'Subject'}: ${marksTier.toUpperCase()} Quiz`;
       const quizRes = await questionService.createQuiz({
         title: finalTitle,
-        subject: selectedSubjectId,
+        subject: targetSubId,
         topic: selectedTopicId || null,
         description: `AI-generated ${difficulty} ${marksTier.toUpperCase()} quiz with ${questionIds.length} questions.`,
         questionIds: questionIds,
@@ -1074,9 +1090,19 @@ export const QuizGeneratorModal = ({
                   <button
                     type="button"
                     onClick={handleSubmitQuiz}
-                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-700 shadow-md shadow-emerald-600/20 transition"
+                    disabled={submittingQuiz}
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold shadow-md shadow-emerald-600/20 transition disabled:opacity-50"
                   >
-                    <CheckCircle2 className="w-4 h-4" /> Submit Quiz & Evaluate
+                    {submittingQuiz ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Evaluating & Saving Attempt...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="w-4 h-4" /> Submit Quiz & Evaluate
+                      </>
+                    )}
                   </button>
                 </div>
               </div>
@@ -1142,15 +1168,45 @@ export const QuizGeneratorModal = ({
 
               {/* Action Buttons */}
               <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={handleRetakeQuiz}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-sm font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition"
-                >
-                  <RotateCcw className="w-4 h-4" /> Retake Quiz
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (onClose) onClose();
+                      navigate('/quizzes?tab=history');
+                    }}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 text-sm font-semibold transition"
+                    title="Exit quiz and return to your quizzes & attempt history"
+                  >
+                    <ArrowLeft className="w-4 h-4" /> Back to Quizzes
+                  </button>
 
-                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={handleRetakeQuiz}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-sm font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                  >
+                    <RotateCcw className="w-4 h-4" /> Retake
+                  </button>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (onClose) onClose();
+                      if (lastRecordedAttemptId) {
+                        navigate(`/quiz-results/${lastRecordedAttemptId}`);
+                      } else {
+                        navigate('/quizzes?tab=history');
+                      }
+                    }}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300 text-sm font-bold border border-indigo-200 dark:border-indigo-800 transition"
+                    title="View saved evaluation attempt in History"
+                  >
+                    <History className="w-4 h-4" /> View in Attempt History
+                  </button>
+
                   {evaluationResult.wrongCount > 0 && (
                     <a
                       href={`/mistake-book${selectedSubjectId ? `?subject=${selectedSubjectId}` : ''}${selectedTopicId ? `&topic=${selectedTopicId}` : ''}`}
@@ -1159,15 +1215,15 @@ export const QuizGeneratorModal = ({
                       className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 text-sm font-bold border border-rose-200 dark:border-rose-800 transition"
                       title="Repractice wrong questions in Mistake Book"
                     >
-                      <BookMarked className="w-4 h-4" /> Practice Mistakes ({evaluationResult.wrongCount})
+                      <BookMarked className="w-4 h-4" /> Mistake Book ({evaluationResult.wrongCount})
                     </a>
                   )}
                   <button
                     type="button"
                     onClick={() => setViewMode('review')}
-                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 shadow-md shadow-blue-600/20 transition"
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 shadow-md shadow-blue-600/20 transition"
                   >
-                    <BookOpen className="w-4 h-4" /> Review Quiz & Solutions <ChevronRight className="w-4 h-4" />
+                    <BookOpen className="w-4 h-4" /> Solutions Review <ChevronRight className="w-4 h-4" />
                   </button>
                   <button
                     type="button"
@@ -1182,7 +1238,7 @@ export const QuizGeneratorModal = ({
                     ) : (
                       <>
                         <FileText className="w-4 h-4" />
-                        {savingQuiz ? 'Saving...' : 'Save & Publish'}
+                        {savingQuiz ? 'Saving...' : 'Save Quiz'}
                       </>
                     )}
                   </button>
@@ -1342,13 +1398,25 @@ export const QuizGeneratorModal = ({
                 >
                   <ArrowLeft className="w-4 h-4" /> Back to Evaluation Scorecard
                 </button>
-                <button
-                  type="button"
-                  onClick={handleRetakeQuiz}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
-                >
-                  <RotateCcw className="w-4 h-4" /> Retake Quiz
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (onClose) onClose();
+                      navigate('/quizzes?tab=history');
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 text-sm font-semibold transition"
+                  >
+                    <ArrowLeft className="w-4 h-4" /> Back to Quizzes
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleRetakeQuiz}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                  >
+                    <RotateCcw className="w-4 h-4" /> Retake Quiz
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -1357,17 +1425,29 @@ export const QuizGeneratorModal = ({
         {/* Modal Bottom Footer */}
         <div className="flex items-center justify-between px-6 py-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
           {viewMode !== 'config' ? (
-            <button
-              onClick={() => {
-                setViewMode('config');
-                setGeneratedQuestions([]);
-                setUserAnswers({});
-                setEvaluationResult(null);
-              }}
-              className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition"
-            >
-              ← Quiz Settings & Generator
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => {
+                  if (onClose) onClose();
+                  navigate('/quizzes?tab=history');
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800 transition"
+                title="Exit quiz modal and return to Quizzes & History"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" /> Back to Quizzes
+              </button>
+              <button
+                onClick={() => {
+                  setViewMode('config');
+                  setGeneratedQuestions([]);
+                  setUserAnswers({});
+                  setEvaluationResult(null);
+                }}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 transition"
+              >
+                Configure New Quiz
+              </button>
+            </div>
           ) : (
             <div className="text-xs text-slate-500 dark:text-slate-400">
               Interactive Quiz Platform • Select 2M / 14M questions to begin.
